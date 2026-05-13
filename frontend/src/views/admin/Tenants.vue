@@ -256,9 +256,12 @@ onMounted(() => {
 const fetchData = async () => {
   try {
     const res = await api.get('/admin/tenants');
-    tenants.value = res.data.data.data;
+    // Handle both paginated and non-paginated response
+    const data = res.data.data;
+    tenants.value = data?.data ?? data ?? [];
   } catch (err) {
     console.error('Failed to fetch tenants', err);
+    console.error('Response:', err.response?.data);
   }
 };
 
@@ -286,10 +289,14 @@ const activeRate = computed(() => {
 });
 
 const estimatedRevenue = computed(() => {
+  // Gunakan data dari stats API jika tersedia
+  if (stats.value.estimated_revenue) return stats.value.estimated_revenue;
+  
+  // Fallback hitung manual dari distribusi plan
   let revenue = 0;
   stats.value.plan_distribution.forEach(p => {
-    if (p.plan === 'basic') revenue += p.count * 150000; // Misal 150rb/bln
-    if (p.plan === 'pro') revenue += p.count * 450000;   // Misal 450rb/bln
+    if (p.plan === 'basic') revenue += p.count * 99000;
+    if (p.plan === 'pro') revenue += p.count * 299000;
   });
   return revenue;
 });

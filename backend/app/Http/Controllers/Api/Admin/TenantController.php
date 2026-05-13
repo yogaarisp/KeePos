@@ -15,7 +15,11 @@ class TenantController extends Controller
     {
         $tenants = Tenant::withCount(['users' => function ($query) {
             $query->withoutGlobalScope('tenant');
-        }])->latest()->paginate(20);
+        }])
+        ->with('profile:tenant_id,shop_name,shop_logo')
+        ->latest()
+        ->paginate(20);
+
         return response()->json([
             'success' => true,
             'data' => $tenants
