@@ -170,17 +170,29 @@ class SettingController extends Controller
         
         // Handle file uploads untuk profile
         if ($request->hasFile('shop_logo')) {
-            $path = $request->file('shop_logo')->store('tenants/logos', 'public');
             if ($user->tenant) {
                 $profile = $user->tenant->getOrCreateProfile();
+                
+                // Hapus logo lama jika ada
+                if ($profile->shop_logo && \Storage::disk('public')->exists($profile->shop_logo)) {
+                    \Storage::disk('public')->delete($profile->shop_logo);
+                }
+                
+                $path = $request->file('shop_logo')->store('tenants/logos', 'public');
                 $profile->update(['shop_logo' => $path]);
             }
         }
         
         if ($request->hasFile('shop_favicon')) {
-            $path = $request->file('shop_favicon')->store('tenants/favicons', 'public');
             if ($user->tenant) {
                 $profile = $user->tenant->getOrCreateProfile();
+                
+                // Hapus favicon lama jika ada
+                if ($profile->shop_favicon && \Storage::disk('public')->exists($profile->shop_favicon)) {
+                    \Storage::disk('public')->delete($profile->shop_favicon);
+                }
+                
+                $path = $request->file('shop_favicon')->store('tenants/favicons', 'public');
                 $profile->update(['shop_favicon' => $path]);
             }
         }
