@@ -1,0 +1,50 @@
+# ============================================================
+# Nginx Configuration untuk Vue SPA + Laravel API
+# Tambahkan/ganti di aaPanel > Website > Config
+# ============================================================
+
+server {
+    listen 80;
+    listen 443 ssl;
+    server_name pos.keetech.my.id;
+    
+    root /www/wwwroot/pos.keetech.my.id/public;
+    index index.html index.php;
+
+    # ── PENTING: Matikan auto trailing slash redirect ──
+    # Ini yang menyebabkan /app redirect ke /app/
+    merge_slashes off;
+
+    # ── API Routes → Laravel (index.php) ──
+    location ~ ^/(api|sanctum|storage)/ {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # ── Vue SPA Routes → index.html ──
+    # Semua route frontend: /app, /login, /register, dll
+    location ~ ^/(app|login|register|forgot-password|reset-password|verify-email)(/.*)?$ {
+        # JANGAN redirect /app ke /app/
+        # Langsung serve index.html
+        try_files $uri /index.html;
+    }
+
+    # ── Static Assets ──
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|json)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # ── PHP (Laravel) ──
+    location ~ \.php$ {
+        fastcgi_pass unix:/tmp/php-cgi-82.sock;
+        fastcgi_index index.php;
+        include fastcgi.conf;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+
+    # ── Default: coba file, lalu index.html (SPA fallback) ──
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
