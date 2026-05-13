@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Billing - Kee POS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #f97316;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .section {
+            background: #334155;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f97316;
+        }
+        .section h2 {
+            color: #fbbf24;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #f97316;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background: #ea580c;
+        }
+        .output {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .success { color: #22c55e; }
+        .error { color: #ef4444; }
+        .warning { color: #fbbf24; }
+        .info { color: #3b82f6; }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Billing Page</h1>
+        
+        <div class="section">
+            <h2>1. Check LocalStorage</h2>
+            <button onclick="checkStorage()">Check Storage</button>
+            <div id="storage-output" class="output"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Test Plans API</h2>
+            <button onclick="testPlansAPI()">Test /api/subscriptions/plans</button>
+            <div id="plans-output" class="output"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. Test All Billing APIs</h2>
+            <button onclick="testAllAPIs()">Test All APIs</button>
+            <div id="all-output" class="output"></div>
+        </div>
+
+        <div class="section">
+            <h2>4. Check Frontend Code</h2>
+            <button onclick="checkFrontendCode()">Check Billing.vue Logic</button>
+            <div id="frontend-output" class="output"></div>
+        </div>
+
+        <div class="section">
+            <h2>5. Force Fetch Plans</h2>
+            <button onclick="forceFetchPlans()">Force Fetch & Display</button>
+            <div id="force-output" class="output"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.18.242:8000/api';
+        const FRONTEND_URL = 'http://192.168.18.242:3000';
+
+        function log(elementId, message, type = 'info') {
+            const output = document.getElementById(elementId);
+            const color = type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'info';
+            output.innerHTML += `<div class="${color}">${message}</div>`;
+        }
+
+        function clear(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        function checkStorage() {
+            clear('storage-output');
+            
+            const token = localStorage.getItem('auth_token');
+            const user = localStorage.getItem('user');
+            
+            log('storage-output', '=== LocalStorage Check ===\n', 'info');
+            
+            if (token) {
+                log('storage-output', `✅ Token: ${token.substring(0, 30)}...`, 'success');
+                log('storage-output', `   Length: ${token.length} chars\n`, 'info');
+            } else {
+                log('storage-output', '❌ Token: NOT FOUND\n', 'error');
+            }
+            
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    log('storage-output', `✅ User: ${userData.full_name} (${userData.email})`, 'success');
+                    log('storage-output', `   Tenant: ${userData.tenant?.name || 'NULL'} (ID: ${userData.tenant_id})\n`, 'info');
+                } catch (e) {
+                    log('storage-output', '❌ User data: INVALID JSON\n', 'error');
+                }
+            } else {
+                log('storage-output', '❌ User: NOT FOUND\n', 'error');
+            }
+        }
+
+        async function testPlansAPI() {
+            clear('plans-output');
+            log('plans-output', '=== Testing /api/subscriptions/plans ===\n', 'info');
+            
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                log('plans-output', '❌ No token found. Please login first.\n', 'error');
+                return;
+            }
+
+            log('plans-output', `Using token: ${token.substring(0, 20)}...\n`, 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/subscriptions/plans`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                log('plans-output', `Status: ${response.status} ${response.statusText}\n`, 
+                    response.ok ? 'success' : 'error');
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('plans-output', '✅ API Response:\n', 'success');
+                    log('plans-output', `<pre>${JSON.stringify(data, null, 2)}</pre>\n`, 'info');
+                    
+                    if (data.data) {
+                        const plans = Object.keys(data.data);
+                        log('plans-output', `\n✅ Found ${plans.length} plans: ${plans.join(', ')}\n`, 'success');
+                        
+                        plans.forEach(key => {
+                            const plan = data.data[key];
+                            log('plans-output', `\n${key.toUpperCase()}:`, 'warning');
+                            log('plans-output', `  Name: ${plan.name}`, 'info');
+                            log('plans-output', `  Price: Rp ${plan.price.toLocaleString('id-ID')}`, 'info');
+                            log('plans-output', `  Features: ${plan.features.length} items`, 'info');
+                        });
+                    }
+                } else {
+                    log('plans-output', `❌ Error Response:\n<pre>${JSON.stringify(data, null, 2)}</pre>`, 'error');
+                }
+            } catch (error) {
+                log('plans-output', `❌ Network Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllAPIs() {
+            clear('all-output');
+            log('all-output', '=== Testing All Billing APIs ===\n', 'info');
+            
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                log('all-output', '❌ No token found\n', 'error');
+                return;
+            }
+
+            const endpoints = [
+                '/subscriptions/plans',
+                '/subscriptions/invoices',
+                '/me'
+            ];
+
+            for (const endpoint of endpoints) {
+                log('all-output', `\nTesting: ${endpoint}`, 'warning');
+                
+                try {
+                    const response = await fetch(`${API_BASE}${endpoint}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        log('all-output', `  ✅ ${response.status} OK`, 'success');
+                        log('all-output', `  Data keys: ${Object.keys(data).join(', ')}`, 'info');
+                    } else {
+                        log('all-output', `  ❌ ${response.status} ${response.statusText}`, 'error');
+                    }
+                } catch (error) {
+                    log('all-output', `  ❌ Error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        function checkFrontendCode() {
+            clear('frontend-output');
+            log('frontend-output', '=== Frontend Code Check ===\n', 'info');
+            
+            log('frontend-output', 'Open browser DevTools Console and run:\n', 'warning');
+            log('frontend-output', '<pre>// Check if availablePlans is populated\nconsole.log(\'availablePlans:\', window.$vm?.$data?.availablePlans)\n\n// Or check Vue devtools\n// Look for Billing component state</pre>', 'info');
+            
+            log('frontend-output', '\n📋 Common Issues:\n', 'warning');
+            log('frontend-output', '1. API returns data but Vue not updating', 'info');
+            log('frontend-output', '2. fetchData() not called on mount', 'info');
+            log('frontend-output', '3. availablePlans ref not reactive', 'info');
+            log('frontend-output', '4. Template condition hiding plans', 'info');
+        }
+
+        async function forceFetchPlans() {
+            clear('force-output');
+            log('force-output', '=== Force Fetch Plans ===\n', 'info');
+            
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                log('force-output', '❌ No token\n', 'error');
+                return;
+            }
+
+            try {
+                log('force-output', '🔄 Fetching plans...\n', 'info');
+                
+                const response = await fetch(`${API_BASE}/subscriptions/plans`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    log('force-output', '✅ Plans fetched successfully!\n', 'success');
+                    
+                    // Display plans
+                    const plans = result.data;
+                    Object.keys(plans).forEach(key => {
+                        const plan = plans[key];
+                        log('force-output', `\n━━━ ${plan.name} ━━━`, 'warning');
+                        log('force-output', `💰 Price: Rp ${plan.price.toLocaleString('id-ID')}/bln`, 'info');
+                        log('force-output', `📋 Features:`, 'info');
+                        plan.features.forEach(f => {
+                            log('force-output', `   ✓ ${f}`, 'success');
+                        });
+                    });
+                    
+                    log('force-output', '\n\n🎯 Next Steps:', 'warning');
+                    log('force-output', '1. API is working ✅', 'success');
+                    log('force-output', '2. Check Billing.vue component', 'info');
+                    log('force-output', '3. Open Vue DevTools', 'info');
+                    log('force-output', '4. Check availablePlans state', 'info');
+                    log('force-output', '\n💡 Try refreshing the Billing page: ' + FRONTEND_URL + '/app/billing', 'info');
+                    
+                } else {
+                    log('force-output', '❌ Invalid response format', 'error');
+                }
+            } catch (error) {
+                log('force-output', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run on load
+        window.onload = () => {
+            checkStorage();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Fix Token - Kee POS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+        .icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+        }
+        h1 {
+            color: #1e293b;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .status.loading {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3);
+        }
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #f97316;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .countdown {
+            font-size: 48px;
+            font-weight: bold;
+            color: #f97316;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🔧</div>
+        <h1>Auto Fix Authentication</h1>
+        <p>Sistem akan otomatis memperbaiki token authentication Anda</p>
+        
+        <div id="status" class="status loading">
+            <div class="spinner"></div>
+            Memperbaiki token...
+        </div>
+
+        <div id="countdown" class="countdown" style="display:none;">3</div>
+        
+        <div id="actions" style="display:none;">
+            <a href="http://192.168.18.242:3000/app/billing" class="btn">Buka Billing Page</a>
+        </div>
+    </div>
+
+    <script>
+        const VALID_TOKEN = '83|zCnSaXZHOZKFUIR6ok4W8hOw4l0DpUgkNGzmjhhL4d7aa128';
+        const USER_DATA = {
+            id: 8,
+            email: "duasrcbook@gmail.com",
+            username: "duasrcbook645",
+            full_name: "Semoga Jaya",
+            role: "admin",
+            tenant_id: 4,
+            tenant: {
+                id: 4,
+                name: "Semoga Jaya",
+                slug: "semoga-jaya",
+                plan: "free",
+                is_active: true
+            }
+        };
+
+        async function autoFix() {
+            const statusEl = document.getElementById('status');
+            const countdownEl = document.getElementById('countdown');
+            const actionsEl = document.getElementById('actions');
+
+            try {
+                // Step 1: Clear old data
+                statusEl.innerHTML = '<div class="spinner"></div>Menghapus data lama...';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // Step 2: Set new token
+                statusEl.innerHTML = '<div class="spinner"></div>Menyimpan token baru...';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                localStorage.setItem('auth_token', VALID_TOKEN);
+                localStorage.setItem('user', JSON.stringify(USER_DATA));
+
+                // Step 3: Verify
+                statusEl.innerHTML = '<div class="spinner"></div>Memverifikasi token...';
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const response = await fetch('http://192.168.18.242:8000/api/me', {
+                    headers: {
+                        'Authorization': 'Bearer ' + VALID_TOKEN,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    // Success!
+                    statusEl.className = 'status success';
+                    statusEl.innerHTML = '✅ Token berhasil diperbaiki!<br>Redirect otomatis dalam 3 detik...';
+                    
+                    // Countdown
+                    countdownEl.style.display = 'block';
+                    let count = 3;
+                    const interval = setInterval(() => {
+                        count--;
+                        countdownEl.textContent = count;
+                        if (count === 0) {
+                            clearInterval(interval);
+                            window.location.href = 'http://192.168.18.242:3000/app/billing';
+                        }
+                    }, 1000);
+
+                    // Show manual button
+                    setTimeout(() => {
+                        actionsEl.style.display = 'block';
+                    }, 1000);
+
+                } else {
+                    throw new Error('Token verification failed');
+                }
+
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.innerHTML = '❌ Gagal memperbaiki token<br>' + error.message;
+                actionsEl.innerHTML = '<button class="btn" onclick="location.reload()">Coba Lagi</button>';
+                actionsEl.style.display = 'block';
+            }
+        }
+
+        // Auto-run on load
+        window.onload = () => {
+            setTimeout(autoFix, 1000);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Authentication - Kee POS</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #3B82F6;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #3B82F6;
+            border-radius: 4px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2563EB;
+        }
+        button.danger {
+            background: #EF4444;
+        }
+        button.danger:hover {
+            background: #DC2626;
+        }
+        button.success {
+            background: #10B981;
+        }
+        button.success:hover {
+            background: #059669;
+        }
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+        .status.error {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+        .status.warning {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        .info {
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .info strong {
+            color: #1E40AF;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Test Authentication</h1>
+        <p class="subtitle">Diagnostic tool untuk troubleshoot 401 Unauthorized errors</p>
+
+        <div class="section">
+            <h3>1. Check LocalStorage</h3>
+            <button onclick="checkLocalStorage()">Check Storage</button>
+            <button class="danger" onclick="clearStorage()">Clear Storage</button>
+            <div id="storage-output" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h3>2. Test API Endpoints</h3>
+            <button onclick="testEndpoint('/api')">Test /api</button>
+            <button onclick="testEndpoint('/api/me')">Test /api/me</button>
+            <button onclick="testEndpoint('/api/settings')">Test /api/settings</button>
+            <button onclick="testEndpoint('/api/subscriptions/plans')">Test /api/subscriptions/plans</button>
+            <div id="api-output" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h3>3. Login Test</h3>
+            <div style="margin-bottom: 15px;">
+                <input type="email" id="email" placeholder="Email" value="duasrcbook@gmail.com" style="padding: 8px; width: 250px; margin-right: 10px;">
+                <input type="password" id="password" placeholder="Password" style="padding: 8px; width: 200px; margin-right: 10px;">
+                <button class="success" onclick="testLogin()">Login</button>
+            </div>
+            <div id="login-output" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="info">
+            <strong>💡 Tips:</strong><br>
+            • Jika token tidak ada atau invalid, clear storage dan login ulang<br>
+            • Jika API /api berhasil tapi /api/me gagal, berarti masalah authentication<br>
+            • Jika semua endpoint 401, token sudah expired atau invalid<br>
+            • Setelah clear storage, HARUS login ulang untuk generate token baru
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.18.242:8000';
+
+        function log(elementId, message, type = 'info') {
+            const output = document.getElementById(elementId);
+            output.style.display = 'block';
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+            output.innerHTML += `[${timestamp}] ${icon} ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearLog(elementId) {
+            const output = document.getElementById(elementId);
+            output.innerHTML = '';
+        }
+
+        function checkLocalStorage() {
+            clearLog('storage-output');
+            
+            const token = localStorage.getItem('auth_token');
+            const user = localStorage.getItem('user');
+            
+            log('storage-output', '=== LocalStorage Check ===', 'info');
+            
+            if (token) {
+                log('storage-output', `Token: ${token.substring(0, 20)}...`, 'success');
+                log('storage-output', `Token Length: ${token.length} chars`, 'info');
+            } else {
+                log('storage-output', 'Token: NOT FOUND', 'error');
+            }
+            
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    log('storage-output', `User: ${userData.full_name} (${userData.email})`, 'success');
+                    log('storage-output', `Tenant: ${userData.tenant?.name || 'NULL'} (ID: ${userData.tenant_id})`, 'info');
+                } catch (e) {
+                    log('storage-output', 'User data: INVALID JSON', 'error');
+                }
+            } else {
+                log('storage-output', 'User: NOT FOUND', 'error');
+            }
+            
+            if (!token || !user) {
+                log('storage-output', '\n⚠️ SOLUTION: Clear storage and login again', 'warning');
+            }
+        }
+
+        function clearStorage() {
+            if (!confirm('Clear localStorage? You will need to login again.')) return;
+            
+            clearLog('storage-output');
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            log('storage-output', '✅ Storage cleared successfully', 'success');
+            log('storage-output', '→ Please login again', 'info');
+        }
+
+        async function testEndpoint(endpoint) {
+            clearLog('api-output');
+            log('api-output', `=== Testing ${endpoint} ===`, 'info');
+            
+            const token = localStorage.getItem('auth_token');
+            const headers = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+                log('api-output', `Using token: ${token.substring(0, 20)}...`, 'info');
+            } else {
+                log('api-output', 'No token found in localStorage', 'warning');
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                log('api-output', `Status: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    log('api-output', `Response:\n${JSON.stringify(data, null, 2)}`, 'success');
+                    
+                    if (endpoint === '/api/settings' && data.data?.profile) {
+                        log('api-output', `\n✅ Shop Name: ${data.data.profile.shop_name}`, 'success');
+                        log('api-output', `✅ Tenant: ${data.data.tenant?.name}`, 'success');
+                    }
+                } else {
+                    log('api-output', `Error:\n${JSON.stringify(data, null, 2)}`, 'error');
+                    
+                    if (response.status === 401) {
+                        log('api-output', '\n⚠️ SOLUTION: Token invalid. Clear storage and login again.', 'warning');
+                    }
+                }
+            } catch (error) {
+                log('api-output', `Network Error: ${error.message}`, 'error');
+                log('api-output', 'Check if backend is running on http://192.168.18.242:8000', 'warning');
+            }
+        }
+
+        async function testLogin() {
+            clearLog('login-output');
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                log('login-output', 'Please enter email and password', 'error');
+                return;
+            }
+            
+            log('login-output', '=== Login Test ===', 'info');
+            log('login-output', `Email: ${email}`, 'info');
+            
+            try {
+                // Step 1: Get CSRF cookie
+                log('login-output', 'Step 1: Getting CSRF cookie...', 'info');
+                await fetch(`${API_BASE}/sanctum/csrf-cookie`, {
+                    credentials: 'include'
+                });
+                log('login-output', '✅ CSRF cookie obtained', 'success');
+                
+                // Step 2: Login
+                log('login-output', 'Step 2: Sending login request...', 'info');
+                const response = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('login-output', '✅ Login successful!', 'success');
+                    log('login-output', `Token: ${data.access_token?.substring(0, 30)}...`, 'success');
+                    log('login-output', `User: ${data.user.full_name}`, 'success');
+                    log('login-output', `Tenant: ${data.user.tenant?.name}`, 'success');
+                    
+                    // Save to localStorage
+                    localStorage.setItem('auth_token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    log('login-output', '\n✅ Token saved to localStorage', 'success');
+                    log('login-output', '→ You can now test API endpoints', 'info');
+                } else {
+                    log('login-output', `❌ Login failed: ${data.message}`, 'error');
+                    log('login-output', `Response:\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('login-output', `Network Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check on load
+        window.onload = () => {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>

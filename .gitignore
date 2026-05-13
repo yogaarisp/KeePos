@@ -1,0 +1,41 @@
+# Laravel
+backend/.env
+backend/vendor/
+backend/node_modules/
+backend/storage/logs/*.log
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+
+# Google Cloud Credentials (SECURITY)
+backend/config/*-*.json
+backend/config/resto-pos-sync-*.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.sql
+*.zip
+*.rar
+
+# Batch files
+*.bat
+
+# Temporary files
+*.tmp
+*.temp
