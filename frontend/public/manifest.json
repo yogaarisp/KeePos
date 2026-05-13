@@ -1,18 +1,13 @@
 {
-  "name": "Kee POS",
-  "short_name": "KeePOS",
-  "description": "Cloud-based POS & Inventory Management System for SaaS",
+  "name": "Kee POS Premium",
+  "short_name": "Kee POS",
+  "description": "Sistem kasir digital berbasis cloud untuk bisnis kuliner",
   "start_url": "/app/",
   "display": "standalone",
   "background_color": "#0a1120",
   "theme_color": "#f97316",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
     {
       "src": "/logo-192.png",
       "sizes": "192x192",
@@ -22,7 +17,8 @@
     {
       "src": "/logo-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

@@ -277,6 +277,7 @@ import {
   FileText, ShieldCheck, Check, Menu, X, Tag, Mail
 } from 'lucide-vue-next';
 import api, { baseUrl } from '../api';
+import { updatePlatformMeta } from '../utils/metaTags';
 
 const isScrolled = ref(false);
 const isMobileMenuOpen = ref(false);
@@ -437,7 +438,8 @@ onMounted(async () => {
     const res = await api.get('/settings/public');
     if (res.data.success) {
       shopInfo.value = res.data.data;
-      document.title = shopInfo.value.shop_name;
+      // Update semua meta tags, favicon, OG image dari database
+      updatePlatformMeta(res.data.data, baseUrl);
     }
   } catch (err) {
     console.warn('Failed to load platform settings', err);

@@ -21,7 +21,7 @@ class SubscriptionController extends Controller
     public function plans()
     {
         $basicPrice = \App\Models\PlatformSetting::getValue('plan_basic_price', 99000);
-        $proPrice = \App\Models\PlatformSetting::getValue('plan_pro_price', 249000);
+        $proPrice = \App\Models\PlatformSetting::getValue('plan_pro_price', 299000);
         
         // Get features from database
         $freeFeatures = json_decode(\App\Models\PlatformSetting::getValue('plan_free_features', '[]'), true);
@@ -126,7 +126,7 @@ class SubscriptionController extends Controller
         }
         
         $basicPrice = \App\Models\PlatformSetting::getValue('plan_basic_price', 99000);
-        $proPrice = \App\Models\PlatformSetting::getValue('plan_pro_price', 249000);
+        $proPrice = \App\Models\PlatformSetting::getValue('plan_pro_price', 299000);
 
         $prices = [
             'basic' => (int)$basicPrice,

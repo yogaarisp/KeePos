@@ -1,9 +1,14 @@
 import axios from 'axios';
 
-export const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-export const baseUrl = (apiUrl.startsWith('http') ? apiUrl.replace(/\/api\/?$/, '') : '');
-console.log('API URL:', apiUrl);
-console.log('Base URL (Asset Root):', baseUrl || '(Relative to Domain Root)');
+// Get API URL from environment, fallback to production URL
+export const apiUrl = import.meta.env.VITE_API_URL || 'https://pos.keetech.my.id/api';
+export const baseUrl = (apiUrl.startsWith('http') ? apiUrl.replace(/\/api\/?$/, '') : 'https://pos.keetech.my.id');
+
+// Debug logging for development
+if (import.meta.env.DEV) {
+    console.log('API URL:', apiUrl);
+    console.log('Base URL (Asset Root):', baseUrl || '(Relative to Domain Root)');
+}
 
 
 const api = axios.create({

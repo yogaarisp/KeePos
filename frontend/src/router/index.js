@@ -190,7 +190,9 @@ const routes = [
 
 const router = createRouter({
     history: createWebHistory(),
-    routes
+    routes,
+    // Prevent automatic trailing slash addition
+    strict: true
 });
 
 router.beforeEach((to, from, next) => {

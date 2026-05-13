@@ -903,7 +903,10 @@ const saveConfigs = async () => {
       }, 1000);
     }
   } catch (err) {
-    showError('Terjadi kesalahan saat menyimpan.');
+    const msg = err.response?.data?.message 
+      || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : null)
+      || 'Terjadi kesalahan saat menyimpan.';
+    showError(msg);
   } finally {
     loading.value = false;
   }

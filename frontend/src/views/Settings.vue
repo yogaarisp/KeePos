@@ -70,6 +70,14 @@
                   <label class="field-label">Nomor Telepon</label>
                   <input type="text" v-model="shopForm.shop_phone" class="modern-input" placeholder="08XX-XXXX-XXXX">
                 </div>
+                <div class="field-group">
+                  <label class="field-label">Email Toko</label>
+                  <input type="email" v-model="shopForm.shop_email" class="modern-input" placeholder="toko@email.com">
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Tagline / Slogan</label>
+                  <input type="text" v-model="shopForm.shop_tagline" class="modern-input" placeholder="Contoh: Enak, Murah, Cepat">
+                </div>
                 <div class="field-group full-width">
                   <label class="field-label">Alamat Lengkap</label>
                   <textarea v-model="shopForm.shop_address" rows="3" class="modern-input modern-textarea" placeholder="Jl. Raya No. 123, Jakarta..."></textarea>
@@ -695,6 +703,8 @@ const logoFile = ref(null);
 const shopForm = reactive({
   shop_name: '',
   shop_phone: '',
+  shop_email: '',
+  shop_tagline: '',
   shop_address: '',
   shop_logo_url: '', // For displaying existing logo
   google_spreadsheet_id: '',
@@ -732,6 +742,8 @@ const syncForm = () => {
   const st = settingStore.settings;
   shopForm.shop_name = st.shop_name || '';
   shopForm.shop_phone = st.shop_phone || '';
+  shopForm.shop_email = st.shop_email || '';
+  shopForm.shop_tagline = st.shop_tagline || '';
   shopForm.shop_address = st.shop_address || '';
   shopForm.shop_logo_url = st.shop_logo || null;
   shopForm.shop_favicon_url = st.shop_favicon || null;
@@ -790,6 +802,8 @@ const saveShopSettings = async () => {
   const settings = {
     shop_name: shopForm.shop_name,
     shop_phone: shopForm.shop_phone,
+    shop_email: shopForm.shop_email,
+    shop_tagline: shopForm.shop_tagline,
     shop_address: shopForm.shop_address,
     google_spreadsheet_id: shopForm.google_spreadsheet_id,
     google_service_account_json: shopForm.google_service_account_json,

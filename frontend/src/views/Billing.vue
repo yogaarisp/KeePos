@@ -304,7 +304,7 @@ const totalPrice = computed(() => {
 const fetchData = async () => {
   try {
     const [plansRes, invoicesRes, meRes] = await Promise.all([
-      api.get('/subscriptions/plans'),
+      api.get('/subscriptions/plans/public'),
       api.get('/subscriptions/invoices'),
       api.get('/me')
     ]);
