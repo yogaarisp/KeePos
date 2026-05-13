@@ -81,6 +81,7 @@
           <thead>
             <tr>
               <th>TOKO</th>
+              <th>OWNER / EMAIL</th>
               <th>PAKET</th>
               <th>STATUS</th>
               <th>USER</th>
@@ -95,8 +96,14 @@
                   <div class="tenant-avatar">{{ tenant.name.charAt(0) }}</div>
                   <div class="tenant-text">
                     <span class="t-name">{{ tenant.name }}</span>
-                    <span class="t-slug">{{ tenant.slug }}.wartegkee.com</span>
+                    <span class="t-slug">{{ tenant.slug }}</span>
                   </div>
+                </div>
+              </td>
+              <td data-label="OWNER / EMAIL">
+                <div class="owner-info">
+                  <span class="o-name">{{ tenant.owner_name || '-' }}</span>
+                  <span class="o-email">{{ tenant.owner_email || '-' }}</span>
                 </div>
               </td>
               <td data-label="PAKET">
@@ -117,13 +124,13 @@
               </td>
               <td data-label="TRIAL/EXPIRES">
                 <div class="date-info">
-                  <span v-if="tenant.plan === 'free'">Trial Ends: {{ formatDate(tenant.trial_ends_at) }}</span>
+                  <span v-if="tenant.plan === 'free'">Trial: {{ formatDate(tenant.trial_ends_at) }}</span>
                   <span v-else>Expires: {{ formatDate(tenant.subscription_ends_at) }}</span>
                 </div>
               </td>
               <td class="text-right" data-label="AKSI">
                 <div class="action-buttons">
-                  <button class="btn-icon" @click="editTenant(tenant)" title="Edit Paket">
+                  <button class="btn-icon" @click="editTenant(tenant)" title="Edit Tenant">
                     <Edit2 :size="16" />
                   </button>
                   <button class="btn-icon danger" @click="confirmDelete(tenant)" title="Hapus Toko">
@@ -133,7 +140,7 @@
               </td>
             </tr>
             <tr v-if="filteredTenants.length === 0">
-              <td colspan="6" class="empty-state">
+              <td colspan="7" class="empty-state">
                 <Search :size="48" />
                 <p>Tidak ada tenant yang ditemukan</p>
               </td>
@@ -167,6 +174,23 @@
               <div class="field-group">
                 <label class="field-label-premium">Nama Toko</label>
                 <input type="text" v-model="editForm.name" class="modern-input-premium">
+              </div>
+
+              <!-- Owner Section -->
+              <div class="owner-section">
+                <div class="owner-section-header">
+                  <div class="owner-icon"><Users :size="16" /></div>
+                  <span>Informasi Owner / Admin Toko</span>
+                </div>
+                <div class="field-group">
+                  <label class="field-label-premium">Nama Owner</label>
+                  <input type="text" v-model="editForm.owner_name" class="modern-input-premium" placeholder="Nama lengkap owner">
+                </div>
+                <div class="field-group">
+                  <label class="field-label-premium">Email Owner</label>
+                  <input type="email" v-model="editForm.owner_email" class="modern-input-premium" placeholder="email@domain.com">
+                  <p class="field-hint-premium">⚠️ Mengubah email akan mereset verifikasi email owner.</p>
+                </div>
               </div>
 
               <div class="field-group">
@@ -245,7 +269,9 @@ const editForm = reactive({
   plan: '',
   is_active: true,
   trial_ends_at: '',
-  subscription_ends_at: ''
+  subscription_ends_at: '',
+  owner_name: '',
+  owner_email: '',
 });
 
 onMounted(() => {
@@ -323,6 +349,8 @@ const editTenant = (tenant) => {
   editForm.is_active = !!tenant.is_active;
   editForm.trial_ends_at = tenant.trial_ends_at ? tenant.trial_ends_at.split('T')[0] : '';
   editForm.subscription_ends_at = tenant.subscription_ends_at ? tenant.subscription_ends_at.split('T')[0] : '';
+  editForm.owner_name = tenant.owner_name || '';
+  editForm.owner_email = tenant.owner_email || '';
   showEditModal.value = true;
 };
 
@@ -504,6 +532,32 @@ const confirmDelete = async (tenant) => {
 .tenant-text { display: flex; flex-direction: column; }
 .t-name { font-weight: 700; color: var(--text-primary); }
 .t-slug { font-size: 12px; color: var(--text-muted); }
+
+/* Owner info in table */
+.owner-info { display: flex; flex-direction: column; gap: 2px; }
+.o-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.o-email { font-size: 11px; color: var(--text-muted); }
+
+/* Owner section in modal */
+.owner-section {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.owner-section-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 800; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.owner-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--accent-light); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
 
 .plan-badge {
   display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;

@@ -16,9 +16,29 @@ class TenantController extends Controller
         $tenants = Tenant::withCount(['users' => function ($query) {
             $query->withoutGlobalScope('tenant');
         }])
-        ->with('profile:tenant_id,shop_name,shop_logo')
+        ->with([
+            'profile:tenant_id,shop_name,shop_logo',
+            // Load owner (admin) user for each tenant
+            'users' => function ($query) {
+                $query->withoutGlobalScope('tenant')
+                      ->where('role', 'admin')
+                      ->select('id', 'tenant_id', 'full_name', 'email', 'username', 'is_active', 'last_login')
+                      ->limit(1);
+            }
+        ])
         ->latest()
         ->paginate(20);
+
+        // Flatten owner info into each tenant
+        $tenants->getCollection()->transform(function ($tenant) {
+            $owner = $tenant->users->first();
+            $tenant->owner_name  = $owner?->full_name;
+            $tenant->owner_email = $owner?->email;
+            $tenant->owner_id    = $owner?->id;
+            $tenant->owner_last_login = $owner?->last_login;
+            unset($tenant->users); // clean up
+            return $tenant;
+        });
 
         return response()->json([
             'success' => true,
@@ -27,26 +47,75 @@ class TenantController extends Controller
     }
 
     /**
-     * Update the specified tenant.
+     * Update the specified tenant (and optionally its owner email).
      */
     public function update(Request $request, $id)
     {
         $tenant = Tenant::findOrFail($id);
-        
+
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'plan' => 'required|in:free,basic,pro',
-            'is_active' => 'required|boolean',
-            'trial_ends_at' => 'nullable|date',
-            'subscription_ends_at' => 'nullable|date',
+            'name'                  => 'required|string|max:255',
+            'plan'                  => 'required|in:free,basic,pro',
+            'is_active'             => 'required|boolean',
+            'trial_ends_at'         => 'nullable|date',
+            'subscription_ends_at'  => 'nullable|date',
+            // Owner fields
+            'owner_email'           => 'nullable|email|max:255',
+            'owner_name'            => 'nullable|string|max:255',
         ]);
 
-        $tenant->update($validated);
+        // Update tenant
+        $tenant->update([
+            'name'                 => $validated['name'],
+            'plan'                 => $validated['plan'],
+            'is_active'            => $validated['is_active'],
+            'trial_ends_at'        => $validated['trial_ends_at'] ?? null,
+            'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
+        ]);
+
+        // Update owner user if email or name provided
+        if (!empty($validated['owner_email']) || !empty($validated['owner_name'])) {
+            $owner = \App\Models\User::withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenant->id)
+                ->where('role', 'admin')
+                ->first();
+
+            if ($owner) {
+                $ownerUpdate = [];
+
+                if (!empty($validated['owner_email']) && $validated['owner_email'] !== $owner->email) {
+                    // Check email uniqueness
+                    $emailExists = \App\Models\User::withoutGlobalScope('tenant')
+                        ->where('email', $validated['owner_email'])
+                        ->where('id', '!=', $owner->id)
+                        ->exists();
+
+                    if ($emailExists) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Email sudah digunakan oleh akun lain.'
+                        ], 422);
+                    }
+
+                    $ownerUpdate['email'] = $validated['owner_email'];
+                    // Reset email verification
+                    $ownerUpdate['email_verified_at'] = null;
+                }
+
+                if (!empty($validated['owner_name'])) {
+                    $ownerUpdate['full_name'] = $validated['owner_name'];
+                }
+
+                if (!empty($ownerUpdate)) {
+                    $owner->update($ownerUpdate);
+                }
+            }
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Tenant berhasil diperbarui',
-            'data' => $tenant
+            'data'    => $tenant
         ]);
     }
 
