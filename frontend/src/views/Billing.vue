@@ -162,7 +162,21 @@
                 </td>
                 <td class="td-muted">{{ formatDate(inv.paid_at || inv.created_at) }}</td>
                 <td class="text-right">
-                  <a v-if="inv.status === 'pending'" :href="inv.payment_url" target="_blank" class="btn-pay-sm">
+                  <div v-if="inv.status === 'pending' && inv.payment_method === 'manual'" class="proof-actions">
+                    <a v-if="inv.payment_proof_url" :href="inv.payment_proof_url" target="_blank" rel="noopener noreferrer" class="link-proof">Lihat</a>
+                    <label class="btn-proof-mini" :class="{ disabled: uploadingProofId === inv.id }">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                        class="sr-only"
+                        :disabled="uploadingProofId === inv.id"
+                        @change="onProofSelected(inv, $event)"
+                      >
+                      <span v-if="uploadingProofId !== inv.id">{{ inv.payment_proof_url ? 'Ganti bukti' : 'Unggah bukti' }}</span>
+                      <span v-else class="proof-uploading">Mengunggah…</span>
+                    </label>
+                  </div>
+                  <a v-else-if="inv.status === 'pending' && inv.payment_url" :href="inv.payment_url" target="_blank" rel="noopener noreferrer" class="btn-pay-sm">
                     <CreditCard :size="12" /> Bayar
                   </a>
                   <span v-else class="td-muted text-xs">Selesai</span>
@@ -237,17 +251,27 @@
               </div>
             </div>
 
-            <div class="info-note">
+            <div class="checkout-mode-row" role="group" aria-label="Metode pembayaran">
+              <button type="button" class="mode-btn" :class="{ active: checkoutMode === 'midtrans' }" @click="checkoutMode = 'midtrans'">Bayar online</button>
+              <button type="button" class="mode-btn" :class="{ active: checkoutMode === 'manual' }" @click="checkoutMode = 'manual'">Transfer manual</button>
+            </div>
+
+            <div class="info-note" v-if="checkoutMode === 'midtrans'">
               <Info :size="14" />
               <p>Anda akan diarahkan ke Midtrans Secure Checkout untuk menyelesaikan pembayaran.</p>
+            </div>
+            <div class="info-note manual" v-else>
+              <Info :size="14" />
+              <p>Tagihan pending akan muncul di riwayat. Setelah transfer bank, unggah bukti (foto atau PDF) pada baris tersebut. Admin dapat mengaktifkan paket setelah verifikasi.</p>
             </div>
           </div>
 
           <footer class="modal-footer">
             <button class="btn-cancel" @click="showCheckoutModal = false">Kembali</button>
-            <button class="btn-confirm" @click="processPayment" :disabled="loadingCheckout">
+            <button class="btn-confirm" @click="checkoutMode === 'midtrans' ? processPayment() : processManualCheckout()" :disabled="loadingCheckout">
               <RefreshCw v-if="loadingCheckout" :size="16" class="spin" />
-              <span v-else>Proses Pembayaran</span>
+              <span v-else-if="checkoutMode === 'midtrans'">Proses Pembayaran</span>
+              <span v-else>Buat tagihan manual</span>
             </button>
           </footer>
         </div>
@@ -257,7 +281,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import api from '../api';
 import {
@@ -274,8 +298,14 @@ const loadingCheckout = ref(false);
 const fetchError = ref(null);
 
 const showCheckoutModal = ref(false);
+const checkoutMode = ref('midtrans');
 const selectedPlan = ref('basic');
 const selectedMonths = ref(1);
+const uploadingProofId = ref(null);
+
+watch(showCheckoutModal, (open) => {
+  if (open) checkoutMode.value = 'midtrans';
+});
 
 const isTrial = computed(() => {
   if (!tenant.value || !tenant.value.plan) return false;
@@ -356,6 +386,49 @@ const processPayment = async () => {
   }
 };
 
+const processManualCheckout = async () => {
+  loadingCheckout.value = true;
+  try {
+    const res = await api.post('/subscriptions/checkout-manual', {
+      plan: selectedPlan.value,
+      months: selectedMonths.value
+    });
+
+    if (res.data.success) {
+      showCheckoutModal.value = false;
+      showSuccess('Invoice manual dibuat. Silakan transfer sesuai nominal, lalu unggah bukti di kolom aksi pada baris invoice tersebut.');
+      await fetchData();
+    }
+  } catch (err) {
+    showError(err.response?.data?.message || 'Gagal membuat invoice manual.');
+  } finally {
+    loadingCheckout.value = false;
+  }
+};
+
+const onProofSelected = async (inv, e) => {
+  const input = e.target;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+
+  uploadingProofId.value = inv.id;
+  try {
+    const fd = new FormData();
+    fd.append('proof', file);
+    const res = await api.post(`/subscriptions/invoices/${inv.id}/proof`, fd);
+    if (res.data.success) {
+      showSuccess(res.data.message || 'Bukti pembayaran berhasil disimpan.');
+      const idx = invoices.value.findIndex((i) => i.id === inv.id);
+      if (idx >= 0) invoices.value[idx] = res.data.data;
+    }
+  } catch (err) {
+    showError(err.response?.data?.message || 'Gagal mengunggah bukti.');
+  } finally {
+    uploadingProofId.value = null;
+  }
+};
+
 const formatNumber = (num) => {
   if (num === null || num === undefined) return '0';
   return new Intl.NumberFormat('id-ID').format(Math.round(num));
@@ -390,6 +463,9 @@ const formatStatus = (s) => {
   font-family: 'Plus Jakarta Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   animation: fadeIn 0.4s ease;
+  /* Cegah Safari/iOS membesarkan teks otomatis (sering terlihat “aneh besar”) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* ── Hero ── */
@@ -653,7 +729,74 @@ const formatStatus = (s) => {
 .total-amount { font-size: 20px; color: #f97316; font-weight: 900; letter-spacing: -0.5px; }
 
 .info-note { display: flex; gap: 8px; font-size: 11px; color: var(--text-muted); padding: 12px; background: var(--bg-primary); border-radius: 10px; margin-top: 16px; }
+.info-note.manual { border: 1px dashed rgba(249, 115, 22, 0.35); }
 .info-note p { margin: 0; }
+
+.checkout-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+.mode-btn {
+  height: 40px;
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-card);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: 0.2s;
+}
+.mode-btn:hover { border-color: #fdba74; color: var(--text-primary); }
+.mode-btn.active {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.08);
+  color: #c2410c;
+}
+
+.proof-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.link-proof {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  text-decoration: none;
+}
+.link-proof:hover { text-decoration: underline; }
+.btn-proof-mini {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn-proof-mini:hover:not(.disabled) { border-color: #f97316; color: #ea580c; }
+.btn-proof-mini.disabled { opacity: 0.6; cursor: not-allowed; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.proof-uploading { font-size: 10px; color: var(--text-muted); }
 
 .modal-footer {
   padding: 16px 24px; display: grid; grid-template-columns: 1fr 2fr; gap: 12px;
@@ -707,9 +850,112 @@ const formatStatus = (s) => {
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .status-row { flex-direction: column; align-items: flex-start; }
+  .page-hero {
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    border-radius: 16px;
+  }
+  .hero-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+  .hero-title { font-size: 1.125rem; line-height: 1.3; }
+  .hero-subtitle { font-size: 0.8125rem; line-height: 1.45; }
+
+  .status-card {
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    border-radius: 16px;
+  }
+  .status-row { flex-direction: column; align-items: flex-start; gap: 16px; }
   .status-sep { display: none; }
-  .expiry-warning { margin-left: 0; width: 100%; }
-  .plans-grid { grid-template-columns: 1fr; }
+  .status-label { font-size: 0.625rem; letter-spacing: 0.08em; }
+  .plan-name { font-size: 1.375rem; letter-spacing: -0.02em; }
+  .status-tag { font-size: 0.6875rem; padding: 4px 10px; }
+  .info-val { font-size: 0.8125rem; }
+  .expiry-warning { margin-left: 0; width: 100%; font-size: 0.6875rem; }
+
+  .section-block { margin-bottom: 18px; }
+  .section-head { margin-bottom: 14px; }
+  .section-title {
+    font-size: 0.9375rem;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .section-desc { font-size: 0.75rem; line-height: 1.45; }
+
+  .plans-grid { grid-template-columns: 1fr; gap: 14px; }
+  .plan-card {
+    padding: 18px 16px;
+    border-radius: 16px;
+  }
+  .pc-header { margin-bottom: 14px; gap: 12px; }
+  .pc-icon { width: 38px; height: 38px; border-radius: 12px; }
+  .pc-name { font-size: 0.9375rem; }
+  .pc-tagline { font-size: 0.6875rem; }
+  .pc-price { margin-bottom: 18px; }
+  .price-currency { font-size: 0.75rem; }
+  .price-amount { font-size: 1.5rem; letter-spacing: -0.02em; }
+  .price-period { font-size: 0.75rem; }
+  .price-strikethrough { font-size: 0.75rem; }
+  .pc-features { gap: 8px; margin-bottom: 18px; }
+  .feature-item { font-size: 0.75rem; gap: 8px; }
+  .btn-plan { height: 42px; font-size: 0.8125rem; border-radius: 12px; }
+
+  .invoice-card { border-radius: 16px; }
+  .data-table th {
+    padding: 10px 12px;
+    font-size: 0.625rem;
+    letter-spacing: 0.06em;
+  }
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 0.75rem;
+  }
+  .td-mono { font-size: 0.6875rem; }
+  .td-muted { font-size: 0.6875rem; }
+  .plan-badge { font-size: 0.5625rem; padding: 2px 8px; }
+  .status-pill { font-size: 0.625rem; padding: 3px 8px; }
+  .btn-pay-sm { font-size: 0.625rem; padding: 5px 10px; }
+  .empty-state h4 { font-size: 0.875rem; }
+  .empty-state p { font-size: 0.6875rem; }
+
+  .modal-overlay { padding: 12px; align-items: flex-end; }
+  .modal-box {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: min(92vh, 640px);
+    overflow-y: auto;
+  }
+  .modal-header { padding: 14px 16px; }
+  .modal-header h2 { font-size: 0.875rem; }
+  .modal-icon { width: 32px; height: 32px; }
+  .modal-body { padding: 16px; }
+  .brief-row h3 { font-size: 0.9375rem; }
+  .brief-price { font-size: 0.75rem; }
+  .duration-grid { gap: 6px; }
+  .dur-btn { padding: 10px 4px; border-radius: 10px; }
+  .dur-num { font-size: 0.875rem; }
+  .dur-label { font-size: 0.5625rem; }
+  .sum-row { font-size: 0.75rem; margin-bottom: 6px; }
+  .sum-row.total { font-size: 0.8125rem; }
+  .total-amount { font-size: 1rem; }
+  .info-note { font-size: 0.625rem; padding: 10px; }
+  .modal-footer { padding: 12px 16px; gap: 10px; }
+  .btn-cancel, .btn-confirm { height: 42px; font-size: 0.8125rem; border-radius: 10px; }
+
+  .error-state { padding: 28px 16px; }
+  .error-state h4 { font-size: 0.875rem; }
+  .error-state p { font-size: 0.75rem; }
+}
+
+@media (max-width: 380px) {
+  .hero-content { gap: 12px; }
+  .plan-name { font-size: 1.25rem; }
+  .price-amount { font-size: 1.375rem; }
+  .duration-grid { gap: 4px; }
+  .dur-btn { padding: 8px 2px; }
+  .dur-num { font-size: 0.8125rem; }
 }
 </style>

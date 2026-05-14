@@ -59,7 +59,7 @@
       <div v-for="(product, idx) in prodStore.products" :key="product.id" 
            class="menu-card" :style="{ animationDelay: (idx * 0.05) + 's' }">
         <div class="card-image">
-          <img v-if="product.image" :src="'/storage/' + product.image" :alt="product.name" loading="lazy">
+          <img v-if="product.image" :src="baseUrl + '/storage/' + product.image" :alt="product.name" loading="lazy">
           <div v-else class="image-empty">
             <Utensils :size="40" />
           </div>
@@ -317,12 +317,19 @@ const save = async () => {
 
   const formData = new FormData();
   const data = { ...modal.form };
-  delete data.image; // handled separately
+  delete data.image;    // handled separately
   delete data.category; // remove relation object
+  delete data.custom_categories; // remove relation
+  delete data.customCategories;  // remove relation
   
   Object.keys(data).forEach(key => {
     if (data[key] !== null && data[key] !== undefined) {
-      formData.append(key, data[key]);
+      // Boolean harus dikonversi ke string '1'/'0' untuk FormData
+      if (typeof data[key] === 'boolean') {
+        formData.append(key, data[key] ? '1' : '0');
+      } else {
+        formData.append(key, data[key]);
+      }
     }
   });
   
@@ -335,6 +342,8 @@ const save = async () => {
   
   if (success) {
     modal.show = false;
+    imagePreview.value = null;
+    imageFile.value = null;
     showSuccess(isEdit ? 'Menu berhasil diperbarui!' : 'Menu berhasil ditambahkan!');
   } else {
     showError(prodStore.error || 'Gagal menyimpan menu');

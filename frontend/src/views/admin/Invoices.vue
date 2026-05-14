@@ -64,12 +64,13 @@
               <th>NOMINAL</th>
               <th>STATUS</th>
               <th class="text-right">TANGGAL</th>
+              <th class="text-right">BUKTI</th>
             </tr>
           </thead>
           <tbody>
             <!-- Loading State -->
             <tr v-if="loading">
-              <td colspan="7" class="loading-cell">
+              <td colspan="8" class="loading-cell">
                 <div class="loader-wrap">
                   <RefreshCw :size="32" class="spin" />
                   <p>Memuat data transaksi...</p>
@@ -104,11 +105,21 @@
                 <td class="text-right text-muted td-date">
                   {{ formatDate(inv.paid_at || inv.created_at) }}
                 </td>
+                <td class="text-right td-proof">
+                  <a
+                    v-if="inv.payment_proof_url"
+                    :href="inv.payment_proof_url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="link-proof-admin"
+                  >Lihat bukti</a>
+                  <span v-else class="text-muted td-proof-empty">—</span>
+                </td>
               </tr>
 
               <!-- Empty State -->
               <tr v-if="filteredInvoices.length === 0">
-                <td colspan="7" class="empty-cell">
+                <td colspan="8" class="empty-cell">
                   <div class="empty-wrapper">
                     <ClipboardList :size="48" class="empty-icon" />
                     <h4>Tidak Ada Transaksi</h4>
@@ -129,7 +140,7 @@ import { ref, onMounted, computed } from 'vue';
 import api from '../../api';
 import { 
   Receipt, Search, CheckCircle, Clock, DollarSign, 
-  RefreshCw, ClipboardList, Filter
+  RefreshCw, ClipboardList
 } from 'lucide-vue-next';
 
 const loading = ref(true);
@@ -322,8 +333,14 @@ const formatStatus = (s) => {
 .empty-wrapper h4 { margin: 0; color: var(--text-secondary); }
 .empty-wrapper p { margin: 0; font-size: 13px; max-width: 300px; }
 
-/* ── Transitions ── */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.link-proof-admin {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+  text-decoration: none;
+}
+.link-proof-admin:hover { text-decoration: underline; }
+.td-proof-empty { font-size: 12px; }
 
 @media (max-width: 768px) {
   .stats-row { grid-template-columns: 1fr; }

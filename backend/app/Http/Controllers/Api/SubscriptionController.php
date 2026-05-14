@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class SubscriptionController extends Controller
 {
@@ -221,6 +222,113 @@ class SubscriptionController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Create a pending invoice for manual bank transfer (no Midtrans).
+     */
+    public function checkoutManual(Request $request)
+    {
+        $request->validate([
+            'plan' => 'required|in:basic,pro',
+            'months' => 'required|integer|min:1|max:12',
+        ]);
+
+        $user = Auth::user();
+        $tenant = $user->tenant;
+
+        if (!$tenant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun superadmin tidak bisa melakukan langganan. Silakan login sebagai tenant/owner.',
+            ], 400);
+        }
+
+        $basicPrice = \App\Models\PlatformSetting::getValue('plan_basic_price', 99000);
+        $proPrice = \App\Models\PlatformSetting::getValue('plan_pro_price', 299000);
+        $prices = [
+            'basic' => (int) $basicPrice,
+            'pro' => (int) $proPrice,
+        ];
+
+        $amount = $prices[$request->plan] * $request->months;
+        $orderId = 'SUBSM-' . $tenant->id . '-' . time();
+
+        $invoice = SubscriptionInvoice::create([
+            'tenant_id' => $tenant->id,
+            'invoice_number' => $orderId,
+            'external_id' => $orderId,
+            'plan' => $request->plan,
+            'amount' => $amount,
+            'months' => $request->months,
+            'status' => 'pending',
+            'payment_method' => 'manual',
+            'payment_token' => null,
+            'payment_url' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $invoice,
+        ]);
+    }
+
+    /**
+     * Upload or replace payment proof (manual invoices only, pending).
+     */
+    public function uploadInvoiceProof(Request $request, int $id)
+    {
+        $user = Auth::user();
+        if (!$user->tenant_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya akun tenant yang dapat mengunggah bukti pembayaran.',
+            ], 403);
+        }
+
+        $invoice = SubscriptionInvoice::where('tenant_id', $user->tenant_id)->find($id);
+
+        if (!$invoice) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice tidak ditemukan.',
+            ], 404);
+        }
+
+        if ($invoice->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bukti hanya dapat diunggah untuk invoice yang masih menunggu pembayaran.',
+            ], 422);
+        }
+
+        if ($invoice->payment_method !== 'manual') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bukti pembayaran hanya untuk metode transfer manual.',
+            ], 422);
+        }
+
+        $request->validate([
+            'proof' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
+        ]);
+
+        $file = $request->file('proof');
+
+        if ($invoice->payment_proof_path && Storage::disk('public')->exists($invoice->payment_proof_path)) {
+            Storage::disk('public')->delete($invoice->payment_proof_path);
+        }
+
+        $storedPath = $file->store('subscription-payment-proofs/' . $user->tenant_id, 'public');
+
+        $invoice->update(['payment_proof_path' => $storedPath]);
+        $invoice->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bukti pembayaran berhasil disimpan.',
+            'data' => $invoice,
+        ]);
     }
 
     /**

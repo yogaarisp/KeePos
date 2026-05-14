@@ -76,7 +76,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/subscriptions/plans', [SubscriptionController::class, 'plans']);
     Route::get('/subscriptions/status', [SubscriptionController::class, 'status']);
     Route::post('/subscriptions/checkout', [SubscriptionController::class, 'checkout']);
+    Route::post('/subscriptions/checkout-manual', [SubscriptionController::class, 'checkoutManual']);
     Route::get('/subscriptions/invoices', [SubscriptionController::class, 'invoices']);
+    Route::post('/subscriptions/invoices/{id}/proof', [SubscriptionController::class, 'uploadInvoiceProof']);
 
     // Tenant routes - Apply subscription check
     Route::middleware('subscription')->group(function () {

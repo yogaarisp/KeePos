@@ -99,7 +99,9 @@ export function updatePlatformMeta(settings, storageBaseUrl = '') {
     // ── Open Graph (WhatsApp, Telegram, Facebook preview) ──
     setMeta('meta[property="og:title"]', 'content', `${appName} — Kasir Digital untuk Bisnis Kuliner`);
     setMeta('meta[property="og:description"]', 'content', description);
-    setMeta('meta[property="og:image"]', 'content', logoUrl);
+    // Tambahkan timestamp agar WhatsApp/Telegram fetch ulang image terbaru
+    const ogImageUrl = logoUrl.includes('?') ? logoUrl : `${logoUrl}?t=${Math.floor(Date.now()/86400000)}`;
+    setMeta('meta[property="og:image"]', 'content', ogImageUrl);
     setMeta('meta[property="og:site_name"]', 'content', appName);
     setMeta('meta[property="og:url"]', 'content', BASE_URL);
 

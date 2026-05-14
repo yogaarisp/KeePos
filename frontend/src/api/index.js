@@ -31,6 +31,12 @@ api.interceptors.request.use(config => {
     if (user && user.tenant) {
         config.headers['X-Tenant-Slug'] = user.tenant.slug;
     }
+
+    // FormData must not use default application/json, and must not set multipart
+    // without boundary — let the browser/axios set multipart + boundary.
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
     
     return config;
 });
