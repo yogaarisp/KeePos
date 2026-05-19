@@ -211,11 +211,8 @@ const fetchAttendance = async () => {
     const data = res.data.data;
     records.value = Array.isArray(data) ? data : (data.data || []);
   } catch (err) {
-    if (err.response?.status !== 403 && err.response?.data?.code !== 'PLAN_INSUFFICIENT') {
-      showError('Gagal memuat absensi');
-    } else {
-      console.warn('Attendance access blocked: Insufficient plan.');
-    }
+    console.warn('Failed to load attendance:', err);
+    records.value = [];
   } finally {
     loading.value = false;
   }

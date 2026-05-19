@@ -595,11 +595,8 @@ const fetchTransactions = async () => {
       pagination.to = data.to || 1;
     }
   } catch (err) {
-    if (err.response?.status !== 403 && err.response?.data?.code !== 'PLAN_INSUFFICIENT') {
-      showError('Gagal memuat riwayat transaksi produksi');
-    } else {
-      console.warn('Production access blocked: Insufficient plan.');
-    }
+    console.warn('Failed to load production transactions:', err);
+    transactions.value = [];
   } finally {
     loading.value = false;
   }
@@ -620,11 +617,8 @@ const fetchProductionRecipes = async () => {
       prodRecipes.value = res.data.data || [];
     }
   } catch (err) {
-    if (err.response?.status !== 403 && err.response?.data?.code !== 'PLAN_INSUFFICIENT') {
-      showError('Gagal memuat resep produksi massal');
-    } else {
-      console.warn('Production recipes access blocked: Insufficient plan.');
-    }
+    console.warn('Failed to load production recipes:', err);
+    prodRecipes.value = [];
   } finally {
     loading.value = false;
   }

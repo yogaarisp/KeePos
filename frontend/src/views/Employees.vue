@@ -162,11 +162,8 @@ const fetchEmployees = async () => {
     const res = await api.get('/employees', { params: { search: search.value, status: filterStatus.value } });
     employees.value = res.data.data || [];
   } catch (err) {
-    if (err.response?.status !== 403 && err.response?.data?.code !== 'PLAN_INSUFFICIENT') {
-      showError('Gagal memuat data karyawan');
-    } else {
-      console.warn('Employees access blocked: Insufficient plan.');
-    }
+    console.warn('Failed to load employees:', err);
+    employees.value = [];
   } finally {
     loading.value = false;
   }
