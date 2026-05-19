@@ -160,20 +160,19 @@
                 
                 <div class="form-row-2">
                   <div class="input-group">
-                    <label class="input-label">Harga (Rp)</label>
+                    <label class="input-label">Harga Jual (Rp)</label>
                     <div class="currency-input">
                       <span class="curr-symbol">Rp</span>
                       <input type="number" v-model="modal.form.price" class="premium-input pl-10" placeholder="0">
                     </div>
                   </div>
                   <div class="input-group">
-                    <label class="input-label">Kategori</label>
-                    <select v-model="modal.form.category_id" class="premium-input">
-                      <option value="">Pilih Kategori</option>
-                      <option v-for="cat in prodStore.categories" :key="cat.id" :value="cat.id">
-                        {{ cat.name }}
-                      </option>
-                    </select>
+                    <label class="input-label">HPP / Harga Modal (Rp)</label>
+                    <div class="currency-input">
+                      <span class="curr-symbol">Rp</span>
+                      <input type="number" v-model="modal.form.cost_price" class="premium-input pl-10" placeholder="0">
+                    </div>
+                    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Untuk kalkulasi profit & margin</p>
                   </div>
                 </div>
 

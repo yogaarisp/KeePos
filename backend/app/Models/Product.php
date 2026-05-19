@@ -14,12 +14,13 @@ class Product extends Model
     use HasFactory, SoftDeletes, BelongsToTenant, LogsActivity;
 
     protected $fillable = [
-        'tenant_id', 'name', 'description', 'price', 'category_id',
+        'tenant_id', 'name', 'description', 'price', 'cost_price', 'category_id',
         'image', 'is_available', 'sort_order',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'price'      => 'decimal:2',
+        'cost_price' => 'decimal:2',
         'is_available' => 'boolean',
     ];
 

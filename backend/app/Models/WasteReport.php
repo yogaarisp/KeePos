@@ -15,12 +15,13 @@ class WasteReport extends Model
     protected $fillable = [
         'tenant_id',
         'source_type', 'source_id', 'item_name',
-        'quantity', 'unit', 'estimated_loss',
+        'quantity', 'unit', 'cost_per_unit', 'estimated_loss',
         'reason', 'notes', 'user_id',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:2',
+        'cost_per_unit' => 'decimal:2',
         'estimated_loss' => 'decimal:2',
     ];
 
@@ -32,5 +33,10 @@ class WasteReport extends Model
     public function getFormattedLossAttribute()
     {
         return 'Rp ' . number_format($this->estimated_loss, 0, ',', '.');
+    }
+
+    public function getFormattedCostAttribute()
+    {
+        return 'Rp ' . number_format($this->cost_per_unit, 0, ',', '.');
     }
 }

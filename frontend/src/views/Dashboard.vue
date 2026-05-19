@@ -60,6 +60,7 @@
                   <div v-if="link.plan && !isPlanMet(link.plan)" class="plan-badge-sidebar" :class="link.plan">
                     {{ link.plan.toUpperCase() }}
                   </div>
+                  <span v-if="link.badge" class="nav-badge-count">{{ link.badge }}</span>
                   <ChevronRight :size="16" class="active-arrow" />
                 </router-link>
               </div>
@@ -121,6 +122,9 @@
 
         <div class="header-right">
           <div class="header-actions-group">
+            <!-- Notification Bell -->
+            <NotificationBell />
+
             <!-- Theme Toggle -->
             <button class="header-action-btn theme-btn" @click="theme.toggle()" :title="theme.isLight ? 'Dark Mode' : 'Light Mode'">
               <Sun v-if="theme.isLight" :size="18" />
@@ -281,6 +285,7 @@ import { usePOSStore } from '../stores/pos'; // Moved up
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirm } from '../utils/swal';
 import { baseUrl } from '../api';
+import api from '../api';
 import { 
   LayoutGrid, ShoppingCart, ClipboardList, Package, ChefHat, Folder,
   Layers, Tag, Table2, Clock, BookOpen, Trash2, 
@@ -288,9 +293,11 @@ import {
   ChevronDown, ChevronRight, LogOut, Menu, Sun, Moon,
   Utensils, X, Calendar, Search, Activity, Box, Truck,
   History, UserCheck, Warehouse, Smartphone, Monitor, Scale,
-  AlertTriangle, Play, Info, Wallet, CreditCard, Lock
+  AlertTriangle, Play, Info, Wallet, CreditCard, Lock, CalendarCheck
 } from 'lucide-vue-next';
 import PremiumLockedOverlay from '../components/PremiumLockedOverlay.vue';
+import NotificationBell from '../components/NotificationBell.vue';
+import { useNotificationStore } from '../stores/notification';
 
 const auth = useAuthStore();
 const settingsStore = useSettingStore();
@@ -298,7 +305,23 @@ const theme = inject('theme');
 const route = useRoute();
 const router = useRouter();
 
+const notifStore = useNotificationStore();
+
 const sidebarOpen = ref(false);
+const pendingInvoiceCount = ref(0);
+
+// Fetch pending manual invoices count for superadmin badge
+const fetchPendingInvoices = async () => {
+  if (!isSuperAdmin.value) return;
+  try {
+    const res = await api.get('/admin/invoices');
+    const data = res.data.data;
+    const list = Array.isArray(data) ? data : (data.data || []);
+    pendingInvoiceCount.value = list.filter(
+      i => i.status === 'pending' && i.payment_method === 'manual'
+    ).length;
+  } catch {}
+};
 const isPlanMet = (requiredPlan) => {
   if (isSuperAdmin.value) return true;
   const currentPlan = auth.user?.tenant?.plan || 'free';
@@ -347,6 +370,7 @@ const toggleSection = (sectionId) => {
 
 onMounted(async () => {
   settingsStore.fetchSettings();
+  fetchPendingInvoices();
   // Restore collapsed sections from localStorage
   const saved = localStorage.getItem('collapsed_sections');
   if (saved) {
@@ -467,6 +491,7 @@ const menuSections = computed(() => {
         { to: '/app/tables', label: 'Kelola Meja', icon: Table2 },
         { to: '/app/shifts', label: 'Kelola Shift', icon: Clock },
         { to: '/app/recipes', label: 'Data Resep', icon: BookOpen, plan: 'pro' },
+        { to: '/app/production', label: 'Produksi Batch', icon: Play, plan: 'pro' },
       ]
     },
     {
@@ -475,8 +500,17 @@ const menuSections = computed(() => {
       show: true,
       links: [
         { to: '/app/reports', label: 'Laporan Penjualan', icon: BarChart2 },
-        { to: '/app/inventory-report', label: 'Laporan Transaksi Inventori', icon: Package, plan: 'basic' },
+        { to: '/app/inventory-report', label: 'Laporan Inventori', icon: Package, plan: 'basic' },
         { to: '/app/waste', label: 'Food Waste', icon: Trash2 },
+      ]
+    },
+    {
+      id: 'workforce',
+      title: 'SDM & KARYAWAN',
+      show: true,
+      links: [
+        { to: '/app/employees', label: 'Data Karyawan', icon: UserCheck, plan: 'basic' },
+        { to: '/app/attendance', label: 'Absensi', icon: CalendarCheck, plan: 'basic' },
       ]
     },
     {
@@ -520,7 +554,8 @@ const menuSections = computed(() => {
         {
           to: '/app/admin/invoices',
           label: 'History Invoice',
-          icon: History
+          icon: History,
+          badge: pendingInvoiceCount.value || null,
         },
       ]
     }
@@ -1653,6 +1688,18 @@ body.hide-mobile-nav .mobile-bottom-nav {
 }
 .btn-shift-later:hover {
   background: #475569;
+}
+
+.nav-badge-count {
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 50px;
+  min-width: 18px;
+  text-align: center;
+  margin-left: auto;
 }
 
 .plan-badge-sidebar {

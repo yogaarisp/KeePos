@@ -17,24 +17,48 @@
       </button>
     </div>
 
+    <!-- Date Filter Bar -->
+    <div class="waste-filter-bar">
+      <div class="filter-group">
+        <Calendar :size="14" />
+        <input type="date" v-model="wasteStore.filters.start_date" @change="refreshData" class="filter-input" placeholder="Dari tanggal">
+      </div>
+      <span class="filter-sep">s/d</span>
+      <div class="filter-group">
+        <Calendar :size="14" />
+        <input type="date" v-model="wasteStore.filters.end_date" @change="refreshData" class="filter-input" placeholder="Sampai tanggal">
+      </div>
+      <select v-model="wasteStore.filters.source_type" @change="refreshData" class="filter-select">
+        <option value="">Semua Sumber</option>
+        <option value="gudang">Gudang</option>
+        <option value="kitchen">Dapur</option>
+      </select>
+      <button class="btn-reset-filter" @click="resetFilter" title="Reset Filter">
+        <X :size="14" />
+      </button>
+    </div>
+
     <!-- Stats Overview -->
-    <div class="stats-grid">
+    <div class="stats-grid" v-if="wasteStore.summaryData">
       <div class="stat-card danger">
-        <div class="stat-icon">
-          <AlertTriangle :size="20" />
-        </div>
+        <div class="stat-icon"><AlertTriangle :size="20" /></div>
         <div class="stat-info">
-          <span class="stat-label">Total Waste</span>
-          <span class="stat-value">{{ wasteStore.reports.length }}</span>
+          <span class="stat-label">Total Kejadian</span>
+          <span class="stat-value">{{ wasteStore.summaryData.total_items }}</span>
         </div>
       </div>
       <div class="stat-card warning">
-        <div class="stat-icon">
-          <DollarSign :size="20" />
-        </div>
+        <div class="stat-icon"><DollarSign :size="20" /></div>
         <div class="stat-info">
-          <span class="stat-label">Est. Kerugian</span>
-          <span class="stat-value">{{ formatCurrency(totalLoss) }}</span>
+          <span class="stat-label">Total Kerugian</span>
+          <span class="stat-value">{{ formatCurrency(wasteStore.summaryData.total_loss) }}</span>
+        </div>
+      </div>
+      <div class="stat-card info" v-for="src in wasteStore.summaryData.by_source" :key="src.source_type">
+        <div class="stat-icon"><Package :size="20" /></div>
+        <div class="stat-info">
+          <span class="stat-label">{{ src.source_type === 'gudang' ? 'Gudang' : 'Dapur' }}</span>
+          <span class="stat-value">{{ formatCurrency(src.total_loss) }}</span>
         </div>
       </div>
     </div>
@@ -62,6 +86,7 @@
               <th><div class="th-inner">Bahan</div></th>
               <th><div class="th-inner">Asal</div></th>
               <th class="text-right"><div class="th-inner justify-end">Qty</div></th>
+              <th class="text-right"><div class="th-inner justify-end">Harga/Unit</div></th>
               <th><div class="th-inner">Alasan</div></th>
               <th class="text-right"><div class="th-inner justify-end">Est. Rugi</div></th>
               <th class="text-center"><div class="th-inner justify-center">Aksi</div></th>
@@ -85,6 +110,9 @@
               </td>
               <td data-label="Qty" class="text-right">
                 <span class="qty-val">{{ formatDecimal(r.quantity) }} {{ r.unit }}</span>
+              </td>
+              <td data-label="Harga/Unit" class="text-right">
+                <span class="cost-val">{{ formatCurrency(r.cost_per_unit || 0) }}</span>
               </td>
               <td data-label="Alasan">
                 <span class="reason-text">{{ r.reason || '-' }}</span>
@@ -186,13 +214,15 @@
 
 <script setup>
 import { onMounted, reactive, computed, watch, onUnmounted } from 'vue';
+
 import { useWasteStore } from '../stores/waste';
 import { useWarehouseStore } from '../stores/warehouse';
 import { useKitchenStore } from '../stores/kitchen';
 import { showConfirm, showSuccess, showError } from '../utils/swal';
 import { 
   Trash2, X, Plus, AlertTriangle, DollarSign, FileX, 
-  Package, ChefHat, Check, Save, RefreshCw, ArrowLeft
+  Package, ChefHat, Check, Save, RefreshCw, ArrowLeft,
+  Calendar, TrendingDown
 } from 'lucide-vue-next';
 
 const wasteStore = useWasteStore();

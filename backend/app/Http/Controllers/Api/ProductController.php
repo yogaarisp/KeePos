@@ -48,6 +48,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'cost_price' => 'nullable|numeric|min:0',
             'category_id' => 'required|exists:categories_product,id',
             'description' => 'nullable|string',
             'image' => 'nullable|image|max:2048',
@@ -58,6 +59,7 @@ class ProductController extends Controller
         // Convert is_available to boolean
         $validated['is_available'] = filter_var($request->is_available ?? true, FILTER_VALIDATE_BOOLEAN);
         $validated['sort_order'] = $request->sort_order ?? 0;
+        $validated['cost_price'] = $request->cost_price ?? 0;
 
         if ($request->hasFile('image')) {
             $validated['image'] = $request->file('image')->store('products', 'public');
@@ -79,6 +81,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'cost_price' => 'nullable|numeric|min:0',
             'category_id' => 'required|exists:categories_product,id',
             'description' => 'nullable|string',
             'image' => 'nullable|image|max:2048',
@@ -89,6 +92,7 @@ class ProductController extends Controller
         // Convert is_available to boolean
         $validated['is_available'] = filter_var($request->is_available ?? true, FILTER_VALIDATE_BOOLEAN);
         $validated['sort_order'] = $request->sort_order ?? 0;
+        $validated['cost_price'] = $request->cost_price ?? $product->cost_price ?? 0;
 
         if ($request->hasFile('image')) {
             if ($product->image) {

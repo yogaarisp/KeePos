@@ -13,7 +13,6 @@ class SubscriptionInvoice extends Model
     protected $fillable = [
         'tenant_id',
         'invoice_number',
-        'external_id',
         'plan',
         'amount',
         'months',
@@ -23,11 +22,15 @@ class SubscriptionInvoice extends Model
         'payment_url',
         'payment_proof_path',
         'paid_at',
+        'rejection_reason',
+        'reviewed_at',
+        'reviewed_by',
     ];
 
     protected $casts = [
-        'paid_at' => 'datetime',
-        'amount' => 'decimal:2',
+        'paid_at'     => 'datetime',
+        'reviewed_at' => 'datetime',
+        'amount'      => 'decimal:2',
     ];
 
     protected $appends = ['payment_proof_url'];

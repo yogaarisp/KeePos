@@ -50,12 +50,33 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Final check for inactive accounts (that AR verified but deactivated by admin)
+        // Final check for inactive accounts (that ARE verified but deactivated by admin)
         if (!$user->is_active) {
             throw ValidationException::withMessages([
                 'email' => ['Akun Anda sedang dinonaktifkan.'],
             ]);
         }
+
+        // Handle 2FA check
+        if ($user->two_factor_enabled) {
+            $otpCode = sprintf("%06d", mt_rand(1, 999999));
+            $user->two_factor_code = $otpCode;
+            $user->two_factor_expires_at = now()->addMinutes(10);
+            $user->save();
+
+            // Send notification (queued)
+            $user->notify(new \App\Notifications\TwoFactorOTPNotification($otpCode));
+
+            return response()->json([
+                'message' => 'Kode verifikasi dua faktor telah dikirim ke email Anda.',
+                'two_factor_required' => true,
+                'email' => $user->email
+            ], 200);
+        }
+
+        // Update last login
+        $user->last_login = now();
+        $user->save();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -63,6 +84,61 @@ class AuthController extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => $user->load('tenant')
+        ]);
+    }
+
+    /**
+     * Verify 2FA code during login
+     */
+    public function verifyTwoFactor(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        $user = User::withoutGlobalScope('tenant')
+            ->where('email', $request->email)
+            ->where('two_factor_code', $request->code)
+            ->where('two_factor_expires_at', '>', now())
+            ->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'code' => ['Kode verifikasi 2FA salah atau sudah kadaluarsa.'],
+            ]);
+        }
+
+        // Clear 2FA data
+        $user->two_factor_code = null;
+        $user->two_factor_expires_at = null;
+        $user->last_login = now();
+        $user->save();
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user->load('tenant')
+        ]);
+    }
+
+    /**
+     * Toggle 2FA on/off for authenticated user
+     */
+    public function toggleTwoFactor(Request $request)
+    {
+        $user = $request->user();
+        $user->two_factor_enabled = !$user->two_factor_enabled;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $user->two_factor_enabled 
+                ? 'Autentikasi dua faktor (2FA) berhasil diaktifkan!' 
+                : 'Autentikasi dua faktor (2FA) dinonaktifkan.',
+            'two_factor_enabled' => $user->two_factor_enabled
         ]);
     }
 

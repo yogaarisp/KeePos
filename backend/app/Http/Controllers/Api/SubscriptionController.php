@@ -135,7 +135,7 @@ class SubscriptionController extends Controller
         ];
 
         $amount = $prices[$request->plan] * $request->months;
-        $orderId = 'SUBS-' . $tenant->id . '-' . time();
+        $orderId = 'KeePOS-' . date('d-m-Y') . '-' . $tenant->id . '-' . time();
 
         $serverKey = \App\Models\PlatformSetting::getValue('midtrans_server_key')
                     ?? config('services.midtrans.server_key');
@@ -202,7 +202,6 @@ class SubscriptionController extends Controller
             $invoice = SubscriptionInvoice::create([
                 'tenant_id' => $tenant->id,
                 'invoice_number' => $orderId,
-                'external_id' => $orderId,
                 'plan' => $request->plan,
                 'amount' => $amount,
                 'months' => $request->months,
@@ -252,12 +251,11 @@ class SubscriptionController extends Controller
         ];
 
         $amount = $prices[$request->plan] * $request->months;
-        $orderId = 'SUBSM-' . $tenant->id . '-' . time();
+        $orderId = 'KeePOS-' . date('d/m/Y') . '-' . $tenant->id . '-' . time();
 
         $invoice = SubscriptionInvoice::create([
             'tenant_id' => $tenant->id,
             'invoice_number' => $orderId,
-            'external_id' => $orderId,
             'plan' => $request->plan,
             'amount' => $amount,
             'months' => $request->months,
@@ -352,7 +350,7 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'Invalid signature'], 403);
         }
 
-        $invoice = SubscriptionInvoice::where('external_id', $orderId)->first();
+        $invoice = SubscriptionInvoice::where('invoice_number', $orderId)->first();
 
         if (!$invoice) {
             return response()->json(['message' => 'Invoice not found'], 404);
@@ -391,6 +389,15 @@ class SubscriptionController extends Controller
                     'ends_at' => $newEndsAt,
                     'status' => 'active',
                 ]);
+
+                // Send payment confirmation email to tenant owner
+                $owner = \App\Models\User::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenant->id)
+                    ->where('role', 'admin')
+                    ->first();
+                if ($owner) {
+                    $owner->notify(new \App\Notifications\PaymentSuccessNotification($invoice->fresh('tenant')));
+                }
             }
         } elseif (in_array($transactionStatus, ['deny', 'cancel', 'expire'])) {
             $invoice->update(['status' => 'expired']);
@@ -410,6 +417,124 @@ class SubscriptionController extends Controller
         return response()->json([
             'success' => true,
             'data' => $invoices
+        ]);
+    }
+
+    /**
+     * Superadmin: Approve a manual payment invoice.
+     */
+    public function approveManualPayment(Request $request, int $id)
+    {
+        $invoice = SubscriptionInvoice::with('tenant')->findOrFail($id);
+
+        if ($invoice->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice ini sudah diproses sebelumnya (status: ' . $invoice->status . ').'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Mark invoice as paid
+            $invoice->update([
+                'status'      => 'paid',
+                'paid_at'     => now(),
+                'reviewed_at' => now(),
+                'reviewed_by' => Auth::id(),
+            ]);
+
+            // Extend tenant subscription
+            $tenant  = $invoice->tenant;
+            $months  = $invoice->months ?? 1;
+
+            $currentEndsAt = ($tenant->subscription_ends_at && $tenant->subscription_ends_at->isFuture())
+                ? $tenant->subscription_ends_at
+                : now();
+
+            $newEndsAt = $currentEndsAt->addMonths($months);
+
+            $tenant->update([
+                'plan'                 => $invoice->plan,
+                'subscription_ends_at' => $newEndsAt,
+                'is_active'            => true,
+            ]);
+
+            // Track subscription record
+            Subscription::create([
+                'tenant_id' => $tenant->id,
+                'plan'      => $invoice->plan,
+                'starts_at' => now(),
+                'ends_at'   => $newEndsAt,
+                'status'    => 'active',
+            ]);
+
+            DB::commit();
+
+            // Notify tenant owner
+            $owner = \App\Models\User::withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenant->id)
+                ->where('role', 'admin')
+                ->first();
+
+            if ($owner) {
+                $owner->notify(new \App\Notifications\PaymentApprovedNotification($invoice));
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pembayaran berhasil dikonfirmasi. Tenant telah diaktifkan.',
+                'data'    => $invoice->fresh('tenant'),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memproses approval: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Superadmin: Reject a manual payment invoice.
+     */
+    public function rejectManualPayment(Request $request, int $id)
+    {
+        $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $invoice = SubscriptionInvoice::with('tenant')->findOrFail($id);
+
+        if ($invoice->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice ini sudah diproses sebelumnya (status: ' . $invoice->status . ').'
+            ], 422);
+        }
+
+        $invoice->update([
+            'status'           => 'rejected',
+            'rejection_reason' => $request->reason ?? '',
+            'reviewed_at'      => now(),
+            'reviewed_by'      => Auth::id(),
+        ]);
+
+        // Notify tenant owner
+        $owner = \App\Models\User::withoutGlobalScope('tenant')
+            ->where('tenant_id', $invoice->tenant_id)
+            ->where('role', 'admin')
+            ->first();
+
+        if ($owner) {
+            $owner->notify(new \App\Notifications\PaymentRejectedNotification($invoice, $request->reason ?? ''));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Invoice telah ditolak dan tenant telah diberitahu.',
+            'data'    => $invoice->fresh(),
         ]);
     }
 

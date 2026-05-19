@@ -149,6 +149,12 @@ const routes = [
                 meta: { title: 'Resep Masakan', requiredPlan: 'pro' }
             },
             {
+                path: 'production',
+                name: 'Production',
+                component: () => import('../views/Production.vue'),
+                meta: { title: 'Produksi Batch', requiredPlan: 'pro' }
+            },
+            {
                 path: 'units',
                 name: 'Units',
                 component: () => import('../views/Units.vue'),
@@ -159,6 +165,18 @@ const routes = [
                 name: 'Billing',
                 component: () => import('../views/Billing.vue'),
                 meta: { title: 'Langganan & Billing', auth: true }
+            },
+            {
+                path: 'employees',
+                name: 'Employees',
+                component: () => import('../views/Employees.vue'),
+                meta: { title: 'Manajemen Karyawan', requiredPlan: 'basic' }
+            },
+            {
+                path: 'attendance',
+                name: 'Attendance',
+                component: () => import('../views/Attendance.vue'),
+                meta: { title: 'Absensi Karyawan', requiredPlan: 'basic' }
             },
             {
                 path: 'admin/tenants',
