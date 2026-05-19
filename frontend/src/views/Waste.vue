@@ -309,12 +309,100 @@ const handleDelete = async (id) => {
 };
 
 const formatDateShort = (date) => new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-const formatCurrency = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+const formatCurrency = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(val || 0));
 const formatDecimal = (val) => Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+const refreshData = () => {
+  wasteStore.fetchReports();
+};
+
+const resetFilter = () => {
+  wasteStore.resetFilters();
+  wasteStore.fetchReports();
+};
 </script>
 
 <style scoped>
 .waste-container { padding: 0; animation: fadeIn 0.4s ease; }
+
+/* ── Filter Bar ── */
+.waste-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 16px 20px;
+  border-radius: 20px;
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px 14px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+.filter-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.filter-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+.filter-sep {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.filter-select {
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 16px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.btn-reset-filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--danger-bg);
+  border: 1.5px solid rgba(239,68,68,0.2);
+  color: var(--danger);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-reset-filter:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+  transform: translateY(-1px);
+}
 
 /* ── Hero ── */
 .page-hero {
@@ -539,6 +627,31 @@ const formatDecimal = (val) => Number(val || 0).toLocaleString('id-ID', { minimu
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .waste-container { padding: 4px; }
+  .waste-filter-bar {
+    padding: 12px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .filter-input {
+    flex: 1;
+    text-align: right;
+  }
+  .filter-sep {
+    text-align: center;
+    margin: 2px 0;
+  }
+  .filter-select {
+    width: 100%;
+  }
+  .btn-reset-filter {
+    width: 100%;
+    height: 44px;
+  }
   .page-hero { padding: 16px; flex-direction: column; align-items: flex-start; }
   .hero-icon-wrap { width: 36px; height: 36px; }
   .hero-icon-wrap svg { width: 18px; height: 18px; }
