@@ -62,6 +62,10 @@ cd ../frontend
 npm install
 npm run build
 
+# Copy built files to backend public directory
+echo "🚀 Deploying frontend to backend public..."
+cp -r dist/* ../backend/public/
+
 # Fix permissions
 echo "🔐 Fixing permissions..."
 cd ..
