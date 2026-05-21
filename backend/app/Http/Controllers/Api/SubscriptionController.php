@@ -62,8 +62,7 @@ class SubscriptionController extends Controller
                     'features' => $basicFeatures ?: [
                         '2 Akun (Owner + Kasir)',
                         'Pengaturan Stok Gudang',
-                        'Export Excel Laporan',
-                        'Google Sheets Sync'
+                        'Export Excel Laporan'
                     ],
                     'limits' => [
                         'max_products' => 100,
@@ -85,6 +84,7 @@ class SubscriptionController extends Controller
                         'Akun Tanpa Batas',
                         'Resep & Stok Dapur',
                         'Inventory Report',
+                        'Google Sheets Sync',
                         'Support Prioritas'
                     ],
                     'limits' => [

@@ -118,21 +118,47 @@
           <!-- Payment Gateway -->
           <section v-else-if="activeTab === 'payment'" key="payment" class="settings-section payment-redesign">
             <header class="section-header">
-              <h1 class="section-title">Payment Gateway (Midtrans)</h1>
-              <p class="section-subtitle">Otomasi pembayaran paket langganan menggunakan infrastruktur Midtrans.</p>
+              <h1 class="section-title">Payment Gateway</h1>
+              <p class="section-subtitle">Pilih dan konfigurasi gateway pembayaran otomatis untuk paket langganan SaaS Anda.</p>
             </header>
 
             <div class="section-body">
-              <div class="gateway-config-card">
-                <div class="gateway-header">
+              
+              <!-- Gateway Selector -->
+              <div class="gateway-selector-card mb-6">
+                <h3 class="gateway-selector-title">Gateway Pembayaran Aktif</h3>
+                <div class="gateway-options">
+                  <label class="gateway-option" :class="{ active: form.active_payment_gateway === 'midtrans' }">
+                    <input type="radio" v-model="form.active_payment_gateway" value="midtrans" class="hidden-radio">
+                    <div class="gateway-radio-custom"></div>
+                    <div class="gateway-option-info">
+                      <h4>Midtrans</h4>
+                      <p>Gunakan Midtrans Payment Gateway</p>
+                    </div>
+                  </label>
+                  
+                  <label class="gateway-option" :class="{ active: form.active_payment_gateway === 'xendit' }">
+                    <input type="radio" v-model="form.active_payment_gateway" value="xendit" class="hidden-radio">
+                    <div class="gateway-radio-custom"></div>
+                    <div class="gateway-option-info">
+                      <h4>Xendit</h4>
+                      <p>Gunakan Xendit Payment Gateway</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Midtrans Config -->
+              <div class="gateway-config-card mb-6" :class="{ 'inactive-gateway': form.active_payment_gateway !== 'midtrans' }">
+                <div class="gateway-header midtrans-header">
                   <div class="midtrans-logo-mock">MIDTRANS</div>
-                  <div class="connection-status">
+                  <div class="connection-status" :class="{ inactive: form.active_payment_gateway !== 'midtrans' }">
                     <span class="status-dot"></span>
-                    API Connected
+                    {{ form.active_payment_gateway === 'midtrans' ? 'Aktif' : 'Nonaktif' }}
                   </div>
                 </div>
 
-                <div class="form-grid-premium">
+                <div class="form-grid-premium" v-show="form.active_payment_gateway === 'midtrans'">
                   <div class="input-premium-group">
                     <label>Server Key</label>
                     <div class="input-conceal">
@@ -166,10 +192,46 @@
                   </div>
                 </div>
 
-                <div class="webhook-url-preview">
+                <div class="webhook-url-preview" v-show="form.active_payment_gateway === 'midtrans'">
                   <label>Notification URL (Daftarkan di Dashboard Midtrans)</label>
                   <div class="url-copy-box">
-                    <code>{{ baseUrl }}/api/subscriptions/webhook</code>
+                    <code>{{ baseUrl }}/api/subscriptions/webhook/midtrans</code>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Xendit Config -->
+              <div class="gateway-config-card" :class="{ 'inactive-gateway': form.active_payment_gateway !== 'xendit' }">
+                <div class="gateway-header xendit-header">
+                  <div class="xendit-logo-mock">XENDIT</div>
+                  <div class="connection-status" :class="{ inactive: form.active_payment_gateway !== 'xendit' }">
+                    <span class="status-dot"></span>
+                    {{ form.active_payment_gateway === 'xendit' ? 'Aktif' : 'Nonaktif' }}
+                  </div>
+                </div>
+
+                <div class="form-grid-premium" v-show="form.active_payment_gateway === 'xendit'">
+                  <div class="input-premium-group">
+                    <label>Secret API Key</label>
+                    <div class="input-conceal">
+                      <Lock :size="16" />
+                      <input type="password" v-model="form.xendit_secret_key" placeholder="xnd_development_...">
+                    </div>
+                  </div>
+
+                  <div class="input-premium-group">
+                    <label>Webhook Verification Token</label>
+                    <div class="input-conceal">
+                      <ShieldCheck :size="16" />
+                      <input type="password" v-model="form.xendit_webhook_token" placeholder="Optional token...">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="webhook-url-preview" v-show="form.active_payment_gateway === 'xendit'">
+                  <label>Webhook URL (Daftarkan di Dashboard Xendit - Invoices)</label>
+                  <div class="url-copy-box">
+                    <code>{{ baseUrl }}/api/subscriptions/webhook/xendit</code>
                   </div>
                 </div>
               </div>
@@ -180,7 +242,74 @@
                 </div>
                 <div class="warning-text">
                   <h4>Data Terenkripsi</h4>
-                  <p>Secret key Anda disimpan dengan enkripsi standar industri. Jangan pernah memindahkan key ini ke lingkungan yang tidak aman.</p>
+                  <p>API keys disimpan dengan aman. Pastikan Anda hanya menggunakan satu payment gateway aktif untuk menerima pembayaran.</p>
+                </div>
+              </div>
+
+              <!-- ═══ Rekening Bank Transfer ═══ -->
+              <div class="bank-section mt-6">
+                <div class="bank-section-header">
+                  <div class="bank-header-left">
+                    <div class="bank-icon-wrap">
+                      <Landmark :size="20" />
+                    </div>
+                    <div>
+                      <h3 class="bank-title">Rekening Bank Transfer</h3>
+                      <p class="bank-desc">Nomor rekening yang ditampilkan kepada tenant saat memilih transfer manual.</p>
+                    </div>
+                  </div>
+                  <button
+                    v-if="bankAccounts.length < 3"
+                    class="btn-add-bank"
+                    @click="openBankModal()"
+                  >
+                    <Plus :size="16" />
+                    <span>Tambah Rekening</span>
+                  </button>
+                </div>
+
+                <!-- Empty State -->
+                <div v-if="bankAccounts.length === 0" class="bank-empty">
+                  <Banknote :size="36" />
+                  <h4>Belum Ada Rekening</h4>
+                  <p>Tambahkan rekening bank agar tenant bisa melakukan transfer manual saat upgrade paket.</p>
+                  <button class="btn-add-bank-empty" @click="openBankModal()">
+                    <Plus :size="16" />
+                    Tambah Rekening Pertama
+                  </button>
+                </div>
+
+                <!-- Bank List -->
+                <div v-else class="bank-cards-list">
+                  <div v-for="bank in bankAccounts" :key="bank.id" class="bank-card" :class="{ inactive: !bank.is_active }">
+                    <div class="bank-card-left">
+                      <div class="bank-logo-box">
+                        <Landmark :size="18" />
+                      </div>
+                      <div class="bank-card-info">
+                        <h4>{{ bank.bank_name }}</h4>
+                        <p class="bank-account-num">{{ bank.account_number }}</p>
+                        <p class="bank-account-holder">a.n. {{ bank.account_holder }}</p>
+                      </div>
+                    </div>
+                    <div class="bank-card-actions">
+                      <span class="bank-status-badge" :class="bank.is_active ? 'active' : 'off'">
+                        <span class="bsb-dot"></span>
+                        {{ bank.is_active ? 'Aktif' : 'Nonaktif' }}
+                      </span>
+                      <button class="btn-bank-edit" @click="openBankModal(bank)" title="Edit">
+                        <Edit3 :size="14" />
+                      </button>
+                      <button class="btn-bank-delete" @click="deleteBankAccount(bank.id)" title="Hapus">
+                        <Trash2 :size="14" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="bankAccounts.length > 0 && bankAccounts.length < 3" class="bank-limit-info">
+                  <Info :size="14" />
+                  <span>{{ bankAccounts.length }}/3 rekening terisi.</span>
                 </div>
               </div>
             </div>
@@ -751,6 +880,49 @@
         </Transition>
       </main>
     </div>
+
+    <!-- Bank Account Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showBankModal" class="modal-overlay-bank" @click.self="showBankModal = false">
+        <div class="modal-box-bank">
+          <header class="mbh">
+            <div class="mbh-left">
+              <div class="mbh-icon"><Landmark :size="18" /></div>
+              <h2>{{ editingBank ? 'Edit Rekening' : 'Tambah Rekening Baru' }}</h2>
+            </div>
+            <button class="mbh-close" @click="showBankModal = false"><X :size="18" /></button>
+          </header>
+          <div class="mbb">
+            <div class="mbb-field">
+              <label>Nama Bank</label>
+              <input type="text" v-model="bankForm.bank_name" class="modern-input" placeholder="Contoh: BCA, BRI, Mandiri">
+            </div>
+            <div class="mbb-field">
+              <label>Nomor Rekening</label>
+              <input type="text" v-model="bankForm.account_number" class="modern-input" placeholder="Contoh: 1234567890">
+            </div>
+            <div class="mbb-field">
+              <label>Atas Nama</label>
+              <input type="text" v-model="bankForm.account_holder" class="modern-input" placeholder="Contoh: PT Kee Tech Indonesia">
+            </div>
+            <div v-if="editingBank" class="mbb-toggle-row">
+              <span>Status Aktif</span>
+              <button class="toggle-switch" :class="{ on: bankForm.is_active }" @click="bankForm.is_active = !bankForm.is_active">
+                <span class="toggle-knob"></span>
+              </button>
+            </div>
+          </div>
+          <footer class="mbf">
+            <button class="mbf-cancel" @click="showBankModal = false">Batal</button>
+            <button class="mbf-save" @click="saveBankAccount" :disabled="savingBank || !bankForm.bank_name || !bankForm.account_number || !bankForm.account_holder">
+              <RefreshCw v-if="savingBank" :size="16" class="spin" />
+              <Save v-else :size="16" />
+              {{ editingBank ? 'Simpan Perubahan' : 'Tambah Rekening' }}
+            </button>
+          </footer>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -763,7 +935,7 @@ import {
   CreditCard, Info, ShieldCheck, Layers, Zap, Globe, Mail,
   Eye, EyeOff, Send, Database, Download, Wrench,
   Lock, Edit3, Monitor, Server, Users, Upload, Trash2,
-  ChevronRight, Rocket, Package, Plus, Phone
+  ChevronRight, Rocket, Package, Plus, Phone, Landmark, Banknote, X
 } from 'lucide-vue-next';
 import { showSuccess, showError } from '../../utils/swal';
 import { baseUrl } from '../../api';
@@ -779,6 +951,16 @@ const sysInfo = ref(null);
 const showPassword = ref(false);
 const testEmailAddress = ref('');
 const activeTab = ref('identity');
+const bankAccounts = ref([]);
+const showBankModal = ref(false);
+const editingBank = ref(null);
+const savingBank = ref(false);
+const bankForm = reactive({
+  bank_name: '',
+  account_number: '',
+  account_holder: '',
+  is_active: true,
+});
 const logoPreview = ref(null);
 const logoFile = ref(null);
 const faviconPreview = ref(null);
@@ -786,7 +968,7 @@ const faviconFile = ref(null);
 
 const tabs = [
   { id: 'identity', label: 'Branding', icon: markRaw(Globe) },
-  { id: 'payment', label: 'Midtrans', icon: markRaw(CreditCard) },
+  { id: 'payment', label: 'Payment Gateway', icon: markRaw(CreditCard) },
   { id: 'email', label: 'Email SMTP', icon: markRaw(Mail) },
   { id: 'plans', label: 'Harga Paket', icon: markRaw(Layers) },
   { id: 'maintenance', label: 'Maintenance', icon: markRaw(Wrench) },
@@ -797,9 +979,12 @@ const form = reactive({
   app_whatsapp: '',
   app_logo_url: '',
   app_favicon_url: '',
+  active_payment_gateway: 'midtrans',
   midtrans_server_key: '',
   midtrans_client_key: '',
   midtrans_is_production: false,
+  xendit_secret_key: '',
+  xendit_webhook_token: '',
   plan_basic_price: 149000,
   plan_pro_price: 299000,
   plan_free_features: [],
@@ -823,9 +1008,12 @@ const fetchData = async () => {
       form.app_whatsapp = res.data.data.app_whatsapp || '';
       form.app_logo_url = res.data.data.app_logo;
       form.app_favicon_url = res.data.data.app_favicon;
+      form.active_payment_gateway = res.data.data.active_payment_gateway || 'midtrans';
       form.midtrans_server_key = res.data.data.midtrans_server_key;
       form.midtrans_client_key = res.data.data.midtrans_client_key;
       form.midtrans_is_production = res.data.data.midtrans_is_production === '1' || res.data.data.midtrans_is_production === true;
+      form.xendit_secret_key = res.data.data.xendit_secret_key;
+      form.xendit_webhook_token = res.data.data.xendit_webhook_token;
       form.plan_basic_price = res.data.data.plan_basic_price;
       form.plan_pro_price = res.data.data.plan_pro_price;
       form.plan_free_features = res.data.data.plan_free_features || [];
@@ -850,7 +1038,77 @@ const fetchData = async () => {
 onMounted(() => {
   fetchData();
   fetchSystemInfo();
+  fetchBankAccounts();
 });
+
+// ─── Bank Account CRUD ──────────
+const fetchBankAccounts = async () => {
+  try {
+    const res = await api.get('/admin/saas/bank-accounts');
+    if (res.data.success) bankAccounts.value = res.data.data;
+  } catch (err) {
+    console.error('Failed to fetch bank accounts', err);
+  }
+};
+
+const openBankModal = (bank = null) => {
+  if (bank) {
+    editingBank.value = bank;
+    bankForm.bank_name = bank.bank_name;
+    bankForm.account_number = bank.account_number;
+    bankForm.account_holder = bank.account_holder;
+    bankForm.is_active = bank.is_active;
+  } else {
+    editingBank.value = null;
+    bankForm.bank_name = '';
+    bankForm.account_number = '';
+    bankForm.account_holder = '';
+    bankForm.is_active = true;
+  }
+  showBankModal.value = true;
+};
+
+const saveBankAccount = async () => {
+  savingBank.value = true;
+  try {
+    if (editingBank.value) {
+      await api.put(`/admin/saas/bank-accounts/${editingBank.value.id}`, bankForm);
+      showSuccess('Rekening bank berhasil diperbarui.');
+    } else {
+      await api.post('/admin/saas/bank-accounts', bankForm);
+      showSuccess('Rekening bank berhasil ditambahkan.');
+    }
+    showBankModal.value = false;
+    await fetchBankAccounts();
+  } catch (err) {
+    showError(err.response?.data?.message || 'Gagal menyimpan rekening bank.');
+  } finally {
+    savingBank.value = false;
+  }
+};
+
+const deleteBankAccount = async (id) => {
+  const { default: Swal } = await import('sweetalert2');
+  const result = await Swal.fire({
+    title: 'Hapus Rekening?',
+    text: 'Rekening bank ini akan dihapus secara permanen.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Ya, Hapus',
+    cancelButtonText: 'Batal',
+    reverseButtons: true
+  });
+  if (!result.isConfirmed) return;
+  try {
+    await api.delete(`/admin/saas/bank-accounts/${id}`);
+    showSuccess('Rekening bank berhasil dihapus.');
+    await fetchBankAccounts();
+  } catch (err) {
+    showError(err.response?.data?.message || 'Gagal menghapus rekening bank.');
+  }
+};
 
 const handleFile = (e, type) => {
   const file = e.target.files[0];
@@ -870,9 +1128,12 @@ const saveConfigs = async () => {
   const formData = new FormData();
   formData.append('app_name', form.app_name);
   formData.append('app_whatsapp', form.app_whatsapp);
+  formData.append('active_payment_gateway', form.active_payment_gateway);
   formData.append('midtrans_server_key', form.midtrans_server_key || '');
   formData.append('midtrans_client_key', form.midtrans_client_key || '');
   formData.append('midtrans_is_production', form.midtrans_is_production ? '1' : '0');
+  formData.append('xendit_secret_key', form.xendit_secret_key || '');
+  formData.append('xendit_webhook_token', form.xendit_webhook_token || '');
   formData.append('plan_basic_price', form.plan_basic_price);
   formData.append('plan_pro_price', form.plan_pro_price);
   formData.append('plan_free_features', JSON.stringify(form.plan_free_features));
@@ -1373,8 +1634,86 @@ const optimizeAction = async () => {
   padding: 24px 32px; background: #4f46e5; color: white;
   display: flex; justify-content: space-between; align-items: center;
 }
-.midtrans-logo-mock { font-weight: 900; letter-spacing: 2px; font-size: 18px; }
-.gateway-header { background: #0d9488 !important; }
+.midtrans-logo-mock, .xendit-logo-mock { font-weight: 900; letter-spacing: 2px; font-size: 18px; }
+.midtrans-header { background: #0d9488 !important; }
+.xendit-header { background: #0284c7 !important; }
+
+/* Inactive gateway dimming */
+.inactive-gateway {
+  opacity: 0.6;
+  filter: grayscale(0.8);
+  transition: all 0.3s ease;
+}
+.inactive-gateway:hover {
+  opacity: 0.9;
+  filter: grayscale(0.2);
+}
+
+/* Gateway Selector */
+.gateway-selector-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  padding: 20px 24px;
+}
+.gateway-selector-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+.gateway-options {
+  display: flex;
+  gap: 16px;
+}
+.gateway-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.gateway-option.active {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 79, 70, 229), 0.05);
+}
+.hidden-radio {
+  display: none;
+}
+.gateway-radio-custom {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  position: relative;
+  transition: all 0.2s;
+}
+.gateway-option.active .gateway-radio-custom {
+  border-color: var(--accent);
+}
+.gateway-option.active .gateway-radio-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px; height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+.gateway-option-info h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+.gateway-option-info p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
 /* Midtrans Environment Toggle */
 .full-width { grid-column: 1 / -1; }
@@ -1389,6 +1728,8 @@ const optimizeAction = async () => {
 .env-btn.production.active { border-color: #ea580c; background: rgba(234, 88, 12, 0.08); color: #ea580c; }
 .connection-status { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+.connection-status.inactive { opacity: 0.7; }
+.connection-status.inactive .status-dot { background: #f87171; box-shadow: 0 0 8px #f87171; }
 
 .form-grid-premium { padding: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; border-bottom: 1px solid var(--border-color); }
 .input-premium-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
@@ -1814,5 +2155,169 @@ const optimizeAction = async () => {
   transition: 0.2s;
 }
 .btn-add-f:hover { border-color: var(--accent); color: var(--accent); background: rgba(249, 115, 22, 0.05); }
+
+/* ── Bank Account Section ── */
+.bank-section {
+  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 24px; overflow: hidden;
+}
+.bank-section-header {
+  padding: 24px 28px; display: flex; justify-content: space-between; align-items: center;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.04) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border-color);
+}
+.bank-header-left { display: flex; align-items: center; gap: 16px; }
+.bank-icon-wrap {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  box-shadow: 0 6px 16px -4px rgba(16, 185, 129, 0.3);
+}
+.bank-title { margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary); }
+.bank-desc { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
+
+.btn-add-bank {
+  height: 40px; padding: 0 18px; border-radius: 12px; border: 1.5px dashed #10b981;
+  background: rgba(16, 185, 129, 0.06); color: #059669; font-size: 13px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;
+}
+.btn-add-bank:hover { background: rgba(16, 185, 129, 0.12); border-style: solid; }
+
+.bank-empty {
+  padding: 48px 28px; display: flex; flex-direction: column; align-items: center; text-align: center;
+  color: var(--text-muted);
+}
+.bank-empty h4 { margin: 12px 0 6px; font-size: 16px; font-weight: 800; color: var(--text-secondary); }
+.bank-empty p { margin: 0 0 20px; font-size: 13px; max-width: 320px; }
+.btn-add-bank-empty {
+  height: 44px; padding: 0 24px; border-radius: 14px; border: none;
+  background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+  font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 8px 20px -4px rgba(16, 185, 129, 0.3); transition: 0.2s;
+}
+.btn-add-bank-empty:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -4px rgba(16, 185, 129, 0.4); }
+
+.bank-cards-list { display: flex; flex-direction: column; }
+.bank-card {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 28px; border-bottom: 1px solid var(--border-color); transition: 0.2s;
+}
+.bank-card:last-child { border-bottom: none; }
+.bank-card:hover { background: var(--bg-primary); }
+.bank-card.inactive { opacity: 0.55; }
+.bank-card.inactive:hover { opacity: 0.8; }
+
+.bank-card-left { display: flex; align-items: center; gap: 16px; }
+.bank-logo-box {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--bg-primary); border: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center; color: #10b981;
+}
+.bank-card-info h4 { margin: 0; font-size: 15px; font-weight: 800; color: var(--text-primary); }
+.bank-account-num { margin: 2px 0 0; font-size: 14px; font-weight: 700; color: var(--accent); font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: 0.5px; }
+.bank-account-holder { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
+
+.bank-card-actions { display: flex; align-items: center; gap: 10px; }
+.bank-status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 100px; font-size: 11px; font-weight: 800;
+}
+.bsb-dot { width: 6px; height: 6px; border-radius: 50%; }
+.bank-status-badge.active { background: rgba(16, 185, 129, 0.1); color: #059669; }
+.bank-status-badge.active .bsb-dot { background: #10b981; }
+.bank-status-badge.off { background: rgba(148, 163, 184, 0.1); color: #94a3b8; }
+.bank-status-badge.off .bsb-dot { background: #94a3b8; }
+
+.btn-bank-edit, .btn-bank-delete {
+  width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border-color);
+  background: var(--bg-card); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: 0.2s; color: var(--text-muted);
+}
+.btn-bank-edit:hover { border-color: #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.06); }
+.btn-bank-delete:hover { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.06); }
+
+.bank-limit-info {
+  display: flex; align-items: center; gap: 8px; padding: 12px 28px;
+  font-size: 12px; color: var(--text-muted); font-weight: 600;
+  background: var(--bg-primary); border-top: 1px solid var(--border-color);
+}
+
+/* ── Bank Modal ── */
+.modal-overlay-bank {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center; z-index: 3000; padding: 20px;
+}
+.modal-box-bank {
+  background: var(--bg-card); width: 100%; max-width: 460px; border-radius: 24px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.3); overflow: hidden; border: 1px solid var(--border-color);
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mbh {
+  padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border-color); background: var(--bg-primary);
+}
+.mbh-left { display: flex; align-items: center; gap: 12px; }
+.mbh-left h2 { font-size: 16px; font-weight: 800; margin: 0; }
+.mbh-icon {
+  width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.1);
+  color: #059669; display: flex; align-items: center; justify-content: center;
+}
+.mbh-close {
+  width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--bg-card-hover);
+  color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: 0.2s;
+}
+.mbh-close:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; transform: rotate(90deg); }
+
+.mbb { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+.mbb-field label {
+  display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+.mbb-toggle-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px; background: var(--bg-primary); border-radius: 12px; border: 1px solid var(--border-color);
+  font-size: 14px; font-weight: 700; color: var(--text-primary);
+}
+.toggle-switch {
+  width: 48px; height: 26px; border-radius: 100px; border: none; cursor: pointer; position: relative;
+  background: #cbd5e1; transition: 0.3s;
+}
+.toggle-switch.on { background: #10b981; }
+.toggle-knob {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  transition: 0.3s;
+}
+.toggle-switch.on .toggle-knob { left: 25px; }
+
+.mbf {
+  padding: 16px 24px; display: grid; grid-template-columns: 1fr 2fr; gap: 12px;
+  border-top: 1px solid var(--border-color); background: var(--bg-primary);
+}
+.mbf-cancel {
+  height: 44px; border-radius: 12px; border: 1.5px solid var(--border-color);
+  background: transparent; font-weight: 700; cursor: pointer; transition: 0.2s; color: var(--text-secondary);
+}
+.mbf-cancel:hover { border-color: var(--text-muted); }
+.mbf-save {
+  height: 44px; border-radius: 12px; border: none;
+  background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+  font-weight: 700; cursor: pointer; box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);
+  display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;
+}
+.mbf-save:hover { transform: translateY(-1px); }
+.mbf-save:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.25s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 768px) {
+  .bank-section-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .btn-add-bank { width: 100%; justify-content: center; }
+  .bank-card { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .bank-card-actions { width: 100%; justify-content: space-between; }
+}
 
 </style>

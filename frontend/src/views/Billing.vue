@@ -260,9 +260,24 @@
               <Info :size="14" />
               <p>Anda akan diarahkan ke Midtrans Secure Checkout untuk menyelesaikan pembayaran.</p>
             </div>
-            <div class="info-note manual" v-else>
-              <Info :size="14" />
-              <p>Tagihan pending akan muncul di riwayat. Setelah transfer bank, unggah bukti (foto atau PDF) pada baris tersebut. Admin dapat mengaktifkan paket setelah verifikasi.</p>
+            <div class="manual-bank-section" v-else>
+              <div class="manual-bank-header">
+                <Info :size="14" />
+                <p>Transfer ke salah satu rekening di bawah ini. Setelah transfer, unggah bukti pembayaran pada baris invoice di riwayat.</p>
+              </div>
+              <div v-if="bankAccounts.length > 0" class="manual-bank-list">
+                <div v-for="b in bankAccounts" :key="b.id" class="manual-bank-item">
+                  <div class="mbi-icon"><Landmark :size="16" /></div>
+                  <div class="mbi-info">
+                    <span class="mbi-bank">{{ b.bank_name }}</span>
+                    <span class="mbi-num">{{ b.account_number }}</span>
+                    <span class="mbi-holder">a.n. {{ b.account_holder }}</span>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="manual-bank-empty">
+                <p>Rekening bank belum dikonfigurasi oleh admin. Hubungi admin untuk informasi pembayaran.</p>
+              </div>
             </div>
           </div>
 
@@ -286,7 +301,7 @@ import { useAuthStore } from '../stores/auth';
 import api from '../api';
 import {
   CreditCard, Check, AlertTriangle, X, RefreshCw,
-  Zap, Layers, Package, Calendar, ClipboardList, Info
+  Zap, Layers, Package, Calendar, ClipboardList, Info, Landmark
 } from 'lucide-vue-next';
 import { showSuccess, showError } from '../utils/swal';
 
@@ -302,6 +317,7 @@ const checkoutMode = ref('midtrans');
 const selectedPlan = ref('basic');
 const selectedMonths = ref(1);
 const uploadingProofId = ref(null);
+const bankAccounts = ref([]);
 
 watch(showCheckoutModal, (open) => {
   if (open) checkoutMode.value = 'midtrans';
@@ -351,7 +367,19 @@ const fetchData = async () => {
   }
 };
 
-onMounted(fetchData);
+onMounted(() => {
+  fetchData();
+  fetchBankAccounts();
+});
+
+const fetchBankAccounts = async () => {
+  try {
+    const res = await api.get('/settings/bank-accounts/public');
+    if (res.data.success) bankAccounts.value = res.data.data;
+  } catch (err) {
+    console.error('Failed to fetch bank accounts', err);
+  }
+};
 
 const scrollToPlans = () => {
   const el = document.getElementById('pricing-section');
@@ -957,5 +985,44 @@ const formatStatus = (s) => {
   .duration-grid { gap: 4px; }
   .dur-btn { padding: 8px 2px; }
   .dur-num { font-size: 0.8125rem; }
+}
+
+/* ── Manual Bank Transfer Section ── */
+.manual-bank-section {
+  margin-top: 16px; border-radius: 14px; overflow: hidden;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.02);
+}
+.manual-bank-header {
+  display: flex; gap: 8px; padding: 12px 14px;
+  font-size: 11px; color: #059669; line-height: 1.5;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.12);
+}
+.manual-bank-header p { margin: 0; }
+.manual-bank-list { display: flex; flex-direction: column; }
+.manual-bank-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-bottom: 1px solid rgba(16, 185, 129, 0.08);
+  transition: 0.15s;
+}
+.manual-bank-item:last-child { border-bottom: none; }
+.manual-bank-item:hover { background: rgba(16, 185, 129, 0.04); }
+.mbi-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(16, 185, 129, 0.1); color: #059669;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mbi-info { display: flex; flex-direction: column; gap: 1px; }
+.mbi-bank { font-size: 13px; font-weight: 800; color: var(--text-primary); }
+.mbi-num {
+  font-size: 14px; font-weight: 700; color: #f97316;
+  font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: 0.5px;
+}
+.mbi-holder { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.manual-bank-empty {
+  padding: 16px 14px; text-align: center;
+}
+.manual-bank-empty p {
+  margin: 0; font-size: 12px; color: var(--text-muted); font-style: italic;
 }
 </style>

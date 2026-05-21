@@ -28,8 +28,7 @@ class PricingSeeder extends Seeder
         $basicFeatures = [
             '2 Akun (Owner + Kasir)',
             'Pengaturan Stok Gudang',
-            'Export Excel Laporan',
-            'Google Sheets Sync'
+            'Export Excel Laporan'
         ];
         PlatformSetting::setValue('plan_basic_features', json_encode($basicFeatures), 'platform', 'json', 'Fitur paket Basic');
         
@@ -38,6 +37,7 @@ class PricingSeeder extends Seeder
             'Akun Tanpa Batas',
             'Resep & Stok Dapur', 
             'Inventory Report',
+            'Google Sheets Sync',
             'Support Prioritas'
         ];
         PlatformSetting::setValue('plan_pro_features', json_encode($proFeatures), 'platform', 'json', 'Fitur paket Pro');

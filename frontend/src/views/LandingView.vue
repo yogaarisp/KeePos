@@ -267,6 +267,11 @@
         </div>
       </div>
     </footer>
+
+    <!-- Floating WhatsApp Button -->
+    <a :href="whatsappLink" target="_blank" class="floating-wa-btn" aria-label="Chat WhatsApp">
+      <MessageCircle :size="28" />
+    </a>
   </div>
 </template>
 
@@ -274,7 +279,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { 
   Utensils, TrendingUp, Package, Layout, Database, 
-  FileText, ShieldCheck, Check, Menu, X, Tag, Mail
+  FileText, ShieldCheck, Check, Menu, X, Tag, Mail, MessageCircle
 } from 'lucide-vue-next';
 import api, { baseUrl } from '../api';
 import { updatePlatformMeta } from '../utils/metaTags';
@@ -1207,9 +1212,46 @@ onUnmounted(() => {
   
   .footer-grid { grid-template-columns: 1fr; }
   .footer-brand { grid-column: span 1; }
-  .footer-bottom { flex-direction: column; gap: 20px; text-align: center; }
-  
-  .floating-card { padding: 8px 12px; font-size: 11px; }
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
 }
-</style>
 
+/* --- Floating WhatsApp Button --- */
+.floating-wa-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #25D366, #128C7E);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(37, 211, 102, 0.4);
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.floating-wa-btn:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 15px 30px rgba(37, 211, 102, 0.5);
+}
+
+@media (max-width: 768px) {
+  .floating-wa-btn {
+    bottom: 20px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+  }
+  .floating-wa-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+.floating-card { padding: 8px 12px; font-size: 11px; }
+</style>

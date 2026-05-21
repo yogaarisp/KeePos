@@ -1225,12 +1225,21 @@ provide('handlePOSNavigation', handlePOSNavigation);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.header-action-btn svg {
+  stroke-width: 1.8 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .header-action-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08);
+}
+.header-action-btn:active {
+  transform: translateY(-0.5px);
 }
 .header-divider {
   width: 1px;

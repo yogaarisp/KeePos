@@ -50,6 +50,7 @@ Route::post('/email/resend', [\App\Http\Controllers\Api\VerificationController::
 
 Route::get('/settings/public', [SettingController::class, 'publicSettings']);
 Route::get('/subscriptions/plans/public', [SubscriptionController::class, 'plans']);
+Route::get('/settings/bank-accounts/public', [SettingController::class, 'getPublicBankAccounts']);
 
 Route::post('/subscriptions/webhook', [SubscriptionController::class, 'webhook']);
 
@@ -83,6 +84,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/saas/system-info', [SettingController::class, 'systemInfo']);
         Route::post('/saas/cache/clear', [SettingController::class, 'clearCache']);
         Route::post('/saas/optimize', [SettingController::class, 'optimizeApp']);
+
+        // Bank Account CRUD for manual payment
+        Route::get('/saas/bank-accounts', [SettingController::class, 'getBankAccounts']);
+        Route::post('/saas/bank-accounts', [SettingController::class, 'storeBankAccount']);
+        Route::put('/saas/bank-accounts/{id}', [SettingController::class, 'updateBankAccount']);
+        Route::delete('/saas/bank-accounts/{id}', [SettingController::class, 'destroyBankAccount']);
     });
 
     // Subscription Routes - No subscription check needed for these
@@ -151,8 +158,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/settings/db/export', [SettingController::class, 'exportDatabase']);
         Route::post('/settings/db/import', [SettingController::class, 'importDatabase']);
         
-        // Google Sheets Sync - Required Basic Plan
-        Route::middleware('plan:basic')->group(function () {
+        // Google Sheets Sync - Required Pro Plan
+        Route::middleware('plan:pro')->group(function () {
             Route::post('/settings/sync-google-sheet', [SettingController::class, 'syncGoogleSheet']);
             Route::post('/settings/sync-inventory-gsheet', [SettingController::class, 'syncInventoryToGSheet']);
         });

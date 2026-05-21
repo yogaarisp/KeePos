@@ -154,6 +154,7 @@
 
           <footer class="form-footer-minimal">
             <p v-if="!show2FA">Belum punya akun? <router-link to="/register" class="minimal-link">Daftar Toko</router-link></p>
+            <p style="margin-top: 16px;"><router-link to="/" class="minimal-link flex-link"><ArrowLeft :size="14" /> Kembali ke Halaman Utama</router-link></p>
             <p style="margin-top: 12px; opacity: 0.5;">&copy; 2026 Keetech. Smart POS Ecosystem.</p>
           </footer>
         </div>
@@ -170,7 +171,7 @@ import { useRouter } from 'vue-router';
 import api from '../api';
 import { 
   Sun, Moon, Utensils, Mail, Lock, 
-  RefreshCw, AlertCircle, ArrowRight, Check,
+  RefreshCw, AlertCircle, ArrowRight, ArrowLeft, Check,
   ShieldAlert, KeyRound
 } from 'lucide-vue-next';
 import { baseUrl } from '../api';
@@ -517,8 +518,9 @@ const backToLogin = () => {
 
 .form-footer-minimal { margin-top: 24px; text-align: center; }
 .form-footer-minimal p { font-size: 13px; color: var(--text-dim); }
-.minimal-link { color: var(--primary); text-decoration: none; font-weight: 600; }
-.minimal-link:hover { text-decoration: underline; }
+.minimal-link { color: var(--primary); text-decoration: none; font-weight: 600; transition: 0.2s; }
+.minimal-link:hover { text-decoration: underline; opacity: 0.8; }
+.flex-link { display: inline-flex; align-items: center; gap: 6px; }
 
 .spinning { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

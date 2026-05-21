@@ -571,9 +571,16 @@ class SettingController extends Controller
                 'app_favicon'           => PlatformSetting::getValue('app_favicon'),
 
                 // Payment Gateway
+                'active_payment_gateway'=> PlatformSetting::getValue('active_payment_gateway', 'midtrans'),
+                
+                // Midtrans
                 'midtrans_server_key'   => PlatformSetting::getValue('midtrans_server_key', ''),
                 'midtrans_client_key'   => PlatformSetting::getValue('midtrans_client_key', ''),
                 'midtrans_is_production'=> PlatformSetting::getValue('midtrans_is_production', '0'),
+
+                // Xendit
+                'xendit_secret_key'     => PlatformSetting::getValue('xendit_secret_key', ''),
+                'xendit_webhook_token'  => PlatformSetting::getValue('xendit_webhook_token', ''),
 
                 // Pricing
                 'plan_basic_price'      => (int) PlatformSetting::getValue('plan_basic_price', 99000),
@@ -582,8 +589,8 @@ class SettingController extends Controller
 
                 // Features (always return array)
                 'plan_free_features'    => $decodeFeatures('plan_free_features', ['1 Akun (Owner)', 'Kasir POS Desktop', 'Laporan Harian']),
-                'plan_basic_features'   => $decodeFeatures('plan_basic_features', ['2 Akun (Owner + Kasir)', 'Pengaturan Stok Gudang', 'Export Excel Laporan', 'Google Sheets Sync']),
-                'plan_pro_features'     => $decodeFeatures('plan_pro_features', ['Akun Tanpa Batas', 'Resep & Stok Dapur', 'Inventory Report', 'Support Prioritas']),
+                'plan_basic_features'   => $decodeFeatures('plan_basic_features', ['2 Akun (Owner + Kasir)', 'Pengaturan Stok Gudang', 'Export Excel Laporan']),
+                'plan_pro_features'     => $decodeFeatures('plan_pro_features', ['Akun Tanpa Batas', 'Resep & Stok Dapur', 'Inventory Report', 'Google Sheets Sync', 'Support Prioritas']),
 
                 // SMTP
                 'smtp_host'             => PlatformSetting::getValue('smtp_host', ''),
@@ -607,9 +614,12 @@ class SettingController extends Controller
         // Simple key-value fields
         $keys = [
             'app_name' => 'platform',
+            'active_payment_gateway' => 'platform',
             'midtrans_server_key' => 'platform',
             'midtrans_client_key' => 'platform',
             'midtrans_is_production' => 'platform',
+            'xendit_secret_key' => 'platform',
+            'xendit_webhook_token' => 'platform',
             'plan_basic_price' => 'platform',
             'plan_pro_price' => 'platform',
             'default_trial_days' => 'platform',
@@ -1033,6 +1043,162 @@ class SettingController extends Controller
             'details' => $results
         ]);
     }
+
+    // ─── SaaS Bank Account CRUD ───────────────────────────────────
+
+    /**
+     * Get all SaaS bank accounts (admin).
+     */
+    public function getBankAccounts()
+    {
+        $accounts = $this->decodeBankAccounts();
+
+        return response()->json([
+            'success' => true,
+            'data' => $accounts,
+        ]);
+    }
+
+    /**
+     * Get bank accounts (public – used by tenant Billing page).
+     */
+    public function getPublicBankAccounts()
+    {
+        $accounts = collect($this->decodeBankAccounts())
+            ->where('is_active', true)
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $accounts,
+        ]);
+    }
+
+    /**
+     * Store a new bank account.
+     */
+    public function storeBankAccount(Request $request)
+    {
+        $request->validate([
+            'bank_name'      => 'required|string|max:100',
+            'account_number' => 'required|string|max:50',
+            'account_holder' => 'required|string|max:100',
+        ]);
+
+        $accounts = $this->decodeBankAccounts();
+
+        if (count($accounts) >= 3) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Maksimal 3 rekening bank yang dapat ditambahkan.',
+            ], 422);
+        }
+
+        $newAccount = [
+            'id'             => (string) \Illuminate\Support\Str::uuid(),
+            'bank_name'      => $request->bank_name,
+            'account_number' => $request->account_number,
+            'account_holder' => $request->account_holder,
+            'is_active'      => true,
+            'created_at'     => now()->toDateTimeString(),
+        ];
+
+        $accounts[] = $newAccount;
+        $this->saveBankAccounts($accounts);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekening bank berhasil ditambahkan.',
+            'data'    => $newAccount,
+        ]);
+    }
+
+    /**
+     * Update an existing bank account.
+     */
+    public function updateBankAccount(Request $request, string $id)
+    {
+        $request->validate([
+            'bank_name'      => 'required|string|max:100',
+            'account_number' => 'required|string|max:50',
+            'account_holder' => 'required|string|max:100',
+            'is_active'      => 'required|boolean',
+        ]);
+
+        $accounts = $this->decodeBankAccounts();
+        $found = false;
+
+        foreach ($accounts as &$account) {
+            if ($account['id'] === $id) {
+                $account['bank_name']      = $request->bank_name;
+                $account['account_number'] = $request->account_number;
+                $account['account_holder'] = $request->account_holder;
+                $account['is_active']      = $request->is_active;
+                $found = true;
+                break;
+            }
+        }
+        unset($account);
+
+        if (!$found) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rekening tidak ditemukan.',
+            ], 404);
+        }
+
+        $this->saveBankAccounts($accounts);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekening bank berhasil diperbarui.',
+            'data'    => $accounts,
+        ]);
+    }
+
+    /**
+     * Delete a bank account.
+     */
+    public function destroyBankAccount(string $id)
+    {
+        $accounts = $this->decodeBankAccounts();
+        $filtered = array_values(array_filter($accounts, fn($a) => $a['id'] !== $id));
+
+        if (count($filtered) === count($accounts)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rekening tidak ditemukan.',
+            ], 404);
+        }
+
+        $this->saveBankAccounts($filtered);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekening bank berhasil dihapus.',
+        ]);
+    }
+
+    /**
+     * Decode bank accounts from PlatformSetting.
+     */
+    private function decodeBankAccounts(): array
+    {
+        $raw = PlatformSetting::getValue('saas_bank_accounts');
+        if (!$raw) return [];
+        $decoded = json_decode($raw, true);
+        return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+    }
+
+    /**
+     * Persist bank accounts to PlatformSetting.
+     */
+    private function saveBankAccounts(array $accounts): void
+    {
+        PlatformSetting::setValue('saas_bank_accounts', json_encode(array_values($accounts)), 'platform');
+    }
+
+    // ─── End Bank Account CRUD ─────────────────────────────────────
 
     /**
      * Format bytes to human readable

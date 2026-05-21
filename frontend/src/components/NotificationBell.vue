@@ -2,10 +2,19 @@
   <div class="notif-bell-wrap" v-click-outside="notifStore.closeDropdown">
     <button
       class="header-action-btn notif-btn"
+      :class="{ 'is-active': notifStore.dropdownOpen }"
       @click="notifStore.toggleDropdown()"
       title="Notifikasi"
     >
-      <Bell :size="18" />
+      <div class="bell-wrapper">
+        <svg class="bell-icon-custom" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Main Bell Body -->
+          <path class="bell-body" d="M12 2C10.34 2 9 3.34 9 5V5.5C6.76 6.22 5 8.36 5 11V16.5L3.59 17.91C3.21 18.29 3 18.8 3 19.33V19.5C3 19.78 3.22 20 3.5 20H20.5C20.78 20 21 19.78 21 19.5V19.33C21 18.8 20.79 18.29 20.41 17.91L19 16.5V11C19 8.36 17.24 6.22 15 5.5V5C15 3.34 13.66 2 12 2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path class="bell-fill" d="M12 2C10.34 2 9 3.34 9 5V5.5C6.76 6.22 5 8.36 5 11V16.5L3.59 17.91C3.21 18.29 3 18.8 3 19.33V19.5C3 19.78 3.22 20 3.5 20H20.5C20.78 20 21 19.78 21 19.5V19.33C21 18.8 20.79 18.29 20.41 17.91L19 16.5V11C19 8.36 17.24 6.22 15 5.5V5C15 3.34 13.66 2 12 2Z" fill="currentColor"/>
+          <!-- Clapper -->
+          <path class="bell-clapper" d="M10 21C10.55 21.62 11.24 22 12 22C12.76 22 13.45 21.62 14 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <span v-if="notifStore.unreadCount > 0" class="notif-badge">
         {{ notifStore.unreadCount > 9 ? '9+' : notifStore.unreadCount }}
       </span>
@@ -60,7 +69,7 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, BellOff } from 'lucide-vue-next';
+import { BellOff } from 'lucide-vue-next';
 import { useNotificationStore } from '../stores/notification';
 
 const notifStore = useNotificationStore();
@@ -112,25 +121,102 @@ const formatTime = (dateStr) => {
 
 .notif-btn {
   position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50% !important;
 }
 
+.notif-btn.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 3.5px rgba(var(--accent-rgb, 249, 115, 22), 0.12);
+  transform: translateY(-1px);
+}
+
+.notif-btn:hover {
+  transform: translateY(-2px);
+}
+
+.bell-wrapper {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bell-icon-custom {
+  width: 20px;
+  height: 20px;
+  color: var(--text-secondary);
+  transform-origin: top center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bell-fill {
+  fill-opacity: 0;
+  transition: fill-opacity 0.3s ease;
+}
+
+.notif-btn:hover .bell-icon-custom,
+.notif-btn.is-active .bell-icon-custom {
+  color: var(--accent);
+}
+
+.notif-btn:hover .bell-fill {
+  fill-opacity: 0.15;
+}
+
+.notif-btn.is-active .bell-fill {
+  fill-opacity: 0.25;
+}
+
+.notif-btn:hover .bell-icon-custom {
+  animation: gentle-swing 1s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Glowing pulsing notification badge */
 .notif-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -2px;
+  right: -2px;
   min-width: 16px;
   height: 16px;
   background: #ef4444;
   color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  border-radius: 10px;
+  font-size: 8.5px;
+  font-weight: 800;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 3px;
+  padding: 0 3.5px;
   border: 2px solid var(--bg-card);
   line-height: 1;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  animation: badge-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes gentle-swing {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(10deg); }
+  40% { transform: rotate(-8deg); }
+  60% { transform: rotate(4deg); }
+  80% { transform: rotate(-2deg); }
+  100% { transform: rotate(0); }
+}
+
+/* Subtle badge pulse keyframe */
+@keyframes badge-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 
 .notif-dropdown {
@@ -188,7 +274,8 @@ const formatTime = (dateStr) => {
 
 .notif-empty-icon {
   margin: 0 auto 12px;
-  opacity: 0.3;
+  opacity: 0.25;
+  stroke-width: 1.5 !important;
 }
 
 .notif-loading-dots {
