@@ -27,8 +27,12 @@ class RegisterController extends Controller
         $request->validate([
             'store_name' => 'required|string|max:255',
             'full_name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username',
-            'email' => 'required|email|max:255|unique:users,email|unique:tenants,email',
+            'username' => ['required', 'string', 'max:255', \Illuminate\Validation\Rule::unique('users', 'username')->whereNull('deleted_at')],
+            'email' => [
+                'required', 'email', 'max:255',
+                \Illuminate\Validation\Rule::unique('users', 'email')->whereNull('deleted_at'),
+                \Illuminate\Validation\Rule::unique('tenants', 'email')->whereNull('deleted_at')
+            ],
             'password' => ['required', Password::defaults()],
         ]);
 

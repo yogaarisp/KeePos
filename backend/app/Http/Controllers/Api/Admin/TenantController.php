@@ -134,6 +134,9 @@ class TenantController extends Controller
             ], 403);
         }
 
+        // Soft delete all users belonging to this tenant
+        \App\Models\User::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->delete();
+        
         $tenant->delete();
 
         return response()->json([
