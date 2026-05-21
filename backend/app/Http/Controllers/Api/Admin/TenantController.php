@@ -126,13 +126,7 @@ class TenantController extends Controller
     {
         $tenant = Tenant::findOrFail($id);
         
-        // Prevent deleting the main tenant
-        if ($tenant->slug === 'default') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Tenant default tidak dapat dihapus'
-            ], 403);
-        }
+        // (Block removed: Any tenant can now be deleted)
 
         // Soft delete all users belonging to this tenant
         \App\Models\User::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->delete();
