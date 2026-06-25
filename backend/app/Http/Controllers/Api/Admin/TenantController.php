@@ -120,22 +120,21 @@ class TenantController extends Controller
     }
 
     /**
-     * Remove the specified tenant (Soft delete or hard delete).
+     * Remove the specified tenant (Hard delete — permanen).
+     * Semua data relasi (users, sales, products, dll) ikut terhapus via DB cascade.
      */
     public function destroy($id)
     {
-        $tenant = Tenant::findOrFail($id);
-        
-        // (Block removed: Any tenant can now be deleted)
+        // withTrashed agar tenant yang sudah soft-deleted pun bisa di-hard delete
+        $tenant = Tenant::withTrashed()->findOrFail($id);
 
-        // Soft delete all users belonging to this tenant
-        \App\Models\User::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->delete();
-        
-        $tenant->delete();
+        // forceDelete menghapus permanen dari DB dan memicu onDelete('cascade')
+        // sehingga semua tabel yang punya foreign key tenant_id ikut terhapus otomatis
+        $tenant->forceDelete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Tenant berhasil dihapus'
+            'message' => 'Tenant berhasil dihapus permanen'
         ]);
     }
 

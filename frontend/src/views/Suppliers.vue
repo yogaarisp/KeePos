@@ -19,7 +19,7 @@
     </div>
 
     <!-- Stats Summary Row -->
-    <div class="stats-grid mb-4">
+    <div class="stats-grid">
       <div class="stat-glass-card">
         <div class="stat-icon-box orange">
           <UsersIcon :size="20" />
@@ -165,46 +165,48 @@
             </div>
 
             <div class="modal-content">
-              <div class="form-grid-2">
-                <div class="input-group">
-                  <label class="input-label">Nama Supplier / Perusahaan</label>
-                  <input type="text" v-model="form.name" class="premium-input" placeholder="E.g. CV Beras Makmur">
-                </div>
-                <div class="input-group">
-                  <label class="input-label">Nama PIC</label>
-                  <input type="text" v-model="form.contact_person" class="premium-input" placeholder="Person In Charge">
-                </div>
-              </div>
-
-              <div class="form-grid-2 mt-4">
-                <div class="input-group">
-                  <label class="input-label">No. Telepon / WA</label>
-                  <input type="text" v-model="form.phone" class="premium-input" placeholder="08xxxxxxxxxxx">
-                </div>
-                <div class="input-group">
-                  <label class="input-label">Email</label>
-                  <input type="email" v-model="form.email" class="premium-input" placeholder="supplier@email.com">
-                </div>
-              </div>
-
-              <div class="input-group mt-4">
-                <label class="input-label">Alamat Lengkap</label>
-                <textarea v-model="form.address" class="premium-input text-area" rows="2" placeholder="Alamat gudang atau kantor supplier..."></textarea>
-              </div>
-
-              <div class="input-group mt-4">
-                <label class="input-label">Catatan (Terlihat saat stok masuk)</label>
-                <textarea v-model="form.notes" class="premium-input text-area" rows="2" placeholder="Informasi tambahan lain..."></textarea>
-              </div>
-
-              <div class="input-group mt-4">
-                <label class="premium-toggle-label">
-                  <span class="lbl-txt">Status Supplier Aktif</span>
-                  <div class="tgl-switch">
-                    <input type="checkbox" v-model="form.is_active" hidden>
-                    <div class="tgl-slider"></div>
+              <div class="form-grid">
+                <div class="form-row-2">
+                  <div class="input-group">
+                    <label class="input-label">Nama Supplier / Perusahaan</label>
+                    <input type="text" v-model="form.name" class="premium-input" placeholder="E.g. CV Beras Makmur">
                   </div>
-                </label>
+                  <div class="input-group">
+                    <label class="input-label">Nama PIC</label>
+                    <input type="text" v-model="form.contact_person" class="premium-input" placeholder="Person In Charge">
+                  </div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="input-group">
+                    <label class="input-label">No. Telepon / WA</label>
+                    <input type="text" v-model="form.phone" class="premium-input" placeholder="08xxxxxxxxxxx">
+                  </div>
+                  <div class="input-group">
+                    <label class="input-label">Email</label>
+                    <input type="email" v-model="form.email" class="premium-input" placeholder="supplier@email.com">
+                  </div>
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label">Alamat Lengkap</label>
+                  <textarea v-model="form.address" class="premium-input text-area" rows="2" placeholder="Alamat gudang atau kantor supplier..."></textarea>
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label">Catatan (Terlihat saat stok masuk)</label>
+                  <textarea v-model="form.notes" class="premium-input text-area" rows="2" placeholder="Informasi tambahan lain..."></textarea>
+                </div>
+
+                <div class="input-group">
+                  <label class="premium-toggle-label">
+                    <span class="lbl-txt">Status Supplier Aktif</span>
+                    <div class="tgl-switch">
+                      <input type="checkbox" v-model="form.is_active" hidden>
+                      <div class="tgl-slider"></div>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -368,7 +370,7 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: space-between;
   background: linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(249,115,22,0.02) 100%);
   border: 1px solid rgba(249,115,22,0.1); border-radius: 20px;
-  padding: 20px 24px; margin-bottom: 20px;
+  padding: 20px 24px; margin-bottom: 24px;
 }
 .hero-content { display: flex; align-items: center; gap: 18px; }
 .hero-icon-wrap {
@@ -388,7 +390,7 @@ onUnmounted(() => {
 }
 
 /* Stats Row */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .stat-glass-card {
   padding: 20px; border-radius: 18px; background: var(--bg-card); border: 1px solid var(--border-color);
   display: flex; align-items: center; gap: 16px;
@@ -408,7 +410,7 @@ onUnmounted(() => {
 .filter-glass-bar {
   display: flex; align-items: center; gap: 16px;
   background: var(--bg-card); border: 1px solid var(--border-color);
-  padding: 12px 16px; border-radius: 18px; margin-bottom: 12px;
+  padding: 12px 16px; border-radius: 18px; margin-bottom: 24px;
 }
 .search-box { flex: 1; position: relative; }
 .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
@@ -486,8 +488,9 @@ onUnmounted(() => {
 .btn-back-header { width: 36px; height: 36px; border-radius: 10px; border: none; background: var(--bg-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
 .modal-content { padding: 24px; }
-.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.input-group { display: flex; flex-direction: column; gap: 6px; }
+.form-grid { display: flex; flex-direction: column; gap: 20px; }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.input-group { display: flex; flex-direction: column; gap: 8px; }
 .input-label { 
   font-size: 11px; 
   font-weight: 700; 
@@ -583,6 +586,10 @@ input:checked + .tgl-slider { left: 22px; }
     padding: 24px; 
     overflow-y: auto; 
     max-height: 60vh; 
+  }
+  .form-row-2 { 
+    grid-template-columns: 1fr; 
+    gap: 16px; 
   }
   .modal-bottom { 
     padding: 16px 24px calc(16px + env(safe-area-inset-bottom));

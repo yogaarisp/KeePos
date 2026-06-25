@@ -157,6 +157,16 @@
                   <label class="input-label">Nama Menu</label>
                   <input type="text" v-model="modal.form.name" class="premium-input" placeholder="Contoh: Ayam Goreng Kremes">
                 </div>
+
+                <div class="input-group">
+                  <label class="input-label">Kategori <span style="color:var(--danger)">*</span></label>
+                  <select v-model="modal.form.category_id" class="premium-input">
+                    <option value="" disabled>-- Pilih Kategori --</option>
+                    <option v-for="cat in prodStore.categories" :key="cat.id" :value="cat.id">
+                      {{ cat.name }}
+                    </option>
+                  </select>
+                </div>
                 
                 <div class="form-row-2">
                   <div class="input-group">
@@ -442,10 +452,17 @@ onUnmounted(() => {
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .filter-select {
-  height: 44px; padding: 0 16px; border-radius: 14px;
+  height: 44px; padding: 0 36px 0 16px; border-radius: 14px;
   background: var(--bg-primary); border: 1px solid var(--border-color);
   color: var(--text-primary); font-weight: 600; font-size: 13px; outline: none; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
+.filter-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg, rgba(99,102,241,0.1)); }
+.filter-select:hover { border-color: var(--accent); }
 
 .btn-refresh {
   width: 44px; height: 44px; border-radius: 14px;

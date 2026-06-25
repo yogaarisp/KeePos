@@ -369,6 +369,7 @@ const toggleSection = (sectionId) => {
 };
 
 onMounted(async () => {
+  auth.fetchUser(); // refresh user + tenant plan dari server
   settingsStore.fetchSettings();
   fetchPendingInvoices();
   // Restore collapsed sections from localStorage

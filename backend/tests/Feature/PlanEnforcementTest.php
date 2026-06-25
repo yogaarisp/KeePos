@@ -130,4 +130,60 @@ class PlanEnforcementTest extends TestCase
                 'code' => 'SUBSCRIPTION_EXPIRED',
             ]);
     }
+
+    public function test_free_tier_cannot_update_google_sheet_settings()
+    {
+        $payload = [
+            'settings' => json_encode([
+                'shop_name' => 'Warteg Gratisan Update',
+                'google_spreadsheet_id' => 'new-spreadsheet-id',
+                'google_sync_enabled' => true,
+            ])
+        ];
+
+        $response = $this->actingAs($this->freeOwner)
+            ->withHeader('X-Tenant-Slug', 'warteg-gratis')
+            ->postJson('/api/settings', $payload);
+
+        $response->assertStatus(200);
+
+        // Verify shop_name is updated
+        $this->assertEquals('Warteg Gratisan Update', $this->freeTenant->getOrCreateProfile()->shop_name);
+        
+        // Retrieve tenant settings from DB
+        $spreadsheetIdSetting = \App\Models\TenantSetting::withoutGlobalScope('tenant')
+            ->where('tenant_id', $this->freeTenant->id)
+            ->where('key', 'google_spreadsheet_id')
+            ->first();
+        $this->assertNull($spreadsheetIdSetting);
+    }
+
+    public function test_pro_tier_can_update_google_sheet_settings()
+    {
+        $payload = [
+            'settings' => json_encode([
+                'shop_name' => 'Warteg Mewah Update',
+                'google_spreadsheet_id' => 'new-spreadsheet-id',
+                'google_sync_enabled' => true,
+            ])
+        ];
+
+        $response = $this->actingAs($this->proOwner)
+            ->withHeader('X-Tenant-Slug', 'warteg-pro')
+            ->postJson('/api/settings', $payload);
+
+        $response->assertStatus(200);
+
+        // Verify shop_name is updated
+        $this->assertEquals('Warteg Mewah Update', $this->proTenant->getOrCreateProfile()->shop_name);
+        
+        // Verify google settings are updated
+        $spreadsheetIdSetting = \App\Models\TenantSetting::withoutGlobalScope('tenant')
+            ->where('tenant_id', $this->proTenant->id)
+            ->where('key', 'google_spreadsheet_id')
+            ->first();
+        $this->assertNotNull($spreadsheetIdSetting);
+        $this->assertEquals('new-spreadsheet-id', $spreadsheetIdSetting->value);
+    }
 }
+

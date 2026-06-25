@@ -123,6 +123,18 @@ const formatTime = (dateStr) => {
   position: relative;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 50% !important;
+  /* Reset browser default button styles */
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary, #f1f5f9);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  padding: 0;
 }
 
 .notif-btn.is-active {
@@ -134,6 +146,10 @@ const formatTime = (dateStr) => {
 
 .notif-btn:hover {
   transform: translateY(-2px);
+  border-color: var(--accent);
+  background: var(--accent-light, rgba(249,115,22,0.08));
+  color: var(--accent);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08);
 }
 
 .bell-wrapper {

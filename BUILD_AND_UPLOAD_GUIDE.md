@@ -9,17 +9,28 @@ npm run build
 ```
 
 ### 2. Upload File dist ke Server
-Setelah build selesai, upload seluruh isi folder `frontend/dist/` ke server di path:
-```
-/www/wwwroot/pos.keetech.my.id/public/
-```
+Setelah build selesai, upload seluruh isi folder `frontend/dist/` ke server di path folder `public` yang aktif:
+
+*   **Jika Laravel langsung berada di root** (ada file `artisan` langsung di `/www/wwwroot/pos.keetech.my.id/`):
+    Upload ke: `/www/wwwroot/pos.keetech.my.id/public/`
+*   **Jika Laravel berada di dalam folder `backend`**:
+    Upload ke: `/www/wwwroot/pos.keetech.my.id/backend/public/`
+
+*PENTING: Pastikan Anda menghapus folder `assets` lama di folder tujuan sebelum melakukan ekstrak zip, dan pastikan file zip di-extract langsung ke dalam folder public aktif tersebut (jangan sampai membuat subfolder baru).*
 
 ### 3. Set Permissions (Jalankan di Server)
+Sesuaikan path folder `public` dengan kondisi server Anda:
 ```bash
 # Masuk ke server via SSH
 cd /www/wwwroot/pos.keetech.my.id
+
+# Jika Laravel langsung di root:
 chown -R www:www public/
 chmod -R 755 public/
+
+# ATAU jika Laravel di dalam folder backend:
+chown -R www:www backend/public/
+chmod -R 755 backend/public/
 ```
 
 ### 4. Clear Browser Cache

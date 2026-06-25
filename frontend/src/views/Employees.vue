@@ -65,23 +65,39 @@
 
     <!-- Modal -->
     <Teleport to="body">
-      <Transition name="modal-fade">
-        <div v-if="modal.show" class="modal-overlay" @click.self="modal.show = false">
-          <div class="modal-box">
-            <header class="modal-header">
-              <div class="modal-icon-wrap"><Users :size="18" /></div>
-              <div>
-                <h3>{{ modal.form.id ? 'Edit Karyawan' : 'Tambah Karyawan' }}</h3>
+      <Transition name="modal">
+        <div v-if="modal.show" class="modal-backdrop" @click.self="modal.show = false">
+          <div class="modal-panel">
+            <div class="modal-top">
+              <div class="modal-header-content">
+                <button class="btn-back-header" @click="modal.show = false">
+                  <ArrowLeft :size="20" />
+                </button>
+                <div class="modal-icon-wrap"><Users :size="20" /></div>
+                <div class="modal-title-area">
+                  <h3 class="modal-title">{{ modal.form.id ? 'Edit Karyawan' : 'Tambah Karyawan' }}</h3>
+                  <p class="modal-desc">{{ modal.form.id ? 'Ubah data karyawan.' : 'Masukkan data karyawan baru.' }}</p>
+                </div>
               </div>
-              <button class="btn-close" @click="modal.show = false"><X :size="18" /></button>
-            </header>
-            <div class="modal-body">
+            </div>
+
+            <div class="modal-content">
               <!-- Photo Upload -->
-              <div class="photo-upload" @click="$refs.photoInput.click()">
-                <img v-if="photoPreview || modal.form.photo_url" :src="photoPreview || modal.form.photo_url" class="photo-preview">
-                <div v-else class="photo-placeholder"><Camera :size="24" /><span>Foto</span></div>
-                <input type="file" ref="photoInput" @change="handlePhoto" accept="image/*" hidden>
+              <div class="photo-upload-row">
+                <div class="photo-upload" @click="$refs.photoInput.click()">
+                  <img v-if="photoPreview || modal.form.photo_url" :src="photoPreview || modal.form.photo_url" class="photo-preview">
+                  <div v-else class="photo-placeholder"><Camera :size="24" /><span>Foto</span></div>
+                  <input type="file" ref="photoInput" @change="handlePhoto" accept="image/*" hidden>
+                </div>
+                <div class="photo-info">
+                  <p class="photo-hint">Foto karyawan (opsional)</p>
+                  <button class="btn-secondary-sm" @click="$refs.photoInput.click()">
+                    {{ (photoPreview || modal.form.photo_url) ? 'Ganti Foto' : 'Pilih Foto' }}
+                  </button>
+                </div>
               </div>
+
+              <div class="divider"></div>
 
               <div class="form-grid">
                 <div class="field-group full">
@@ -121,13 +137,13 @@
                 </div>
               </div>
             </div>
-            <footer class="modal-footer">
-              <button class="btn-cancel" @click="modal.show = false">Batal</button>
+
+            <div class="modal-bottom">
               <button class="btn-save" @click="saveEmployee" :disabled="saving">
                 <RefreshCw v-if="saving" :size="16" class="spin" />
                 <span v-else>{{ modal.form.id ? 'Simpan Perubahan' : 'Tambah Karyawan' }}</span>
               </button>
-            </footer>
+            </div>
           </div>
         </div>
       </Transition>
@@ -140,7 +156,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api';
 import { showConfirm, showSuccess, showError } from '../utils/swal';
-import { Users, Plus, Search, Edit3, Trash2, Calendar, RefreshCw, X, Camera } from 'lucide-vue-next';
+import { Users, Plus, Search, Edit3, Trash2, Calendar, RefreshCw, ArrowLeft, Camera } from 'lucide-vue-next';
 
 const router   = useRouter();
 const employees = ref([]);
@@ -265,38 +281,43 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'nu
 .empty-state p { margin-bottom: 20px; }
 
 /* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-.modal-box { background: var(--bg-card); width: 100%; max-width: 520px; border-radius: 20px; border: 1px solid var(--border-color); max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1); }
-.modal-header { padding: 20px 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); }
-.modal-icon-wrap { width: 38px; height: 38px; border-radius: 10px; background: rgba(249,115,22,0.1); color: var(--accent); display: flex; align-items: center; justify-content: center; }
-.modal-header h3 { font-size: 16px; font-weight: 700; margin: 0; flex: 1; }
-.btn-close { width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--bg-primary); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.modal-body { padding: 20px 24px; }
-.photo-upload { width: 80px; height: 80px; border-radius: 50%; border: 2px dashed var(--border-color); cursor: pointer; overflow: hidden; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+.modal-panel { background: var(--bg-card); width: 100%; max-width: 520px; border-radius: 28px; border: 1px solid var(--border-color); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-top { padding: 20px 24px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+.modal-header-content { display: flex; align-items: center; gap: 12px; }
+.btn-back-header { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-primary); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.modal-icon-wrap { width: 40px; height: 40px; border-radius: 12px; background: rgba(249,115,22,0.1); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.modal-title-area { flex: 1; min-width: 0; }
+.modal-title { font-size: 16px; font-weight: 700; margin: 0 0 2px; }
+.modal-desc { font-size: 12px; color: var(--text-muted); margin: 0; }
+.modal-content { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.modal-bottom { padding: 16px 24px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
+
+.photo-upload-row { display: flex; align-items: center; gap: 16px; margin-bottom: 4px; }
+.photo-upload { width: 72px; height: 72px; border-radius: 50%; border: 2px dashed var(--border-color); cursor: pointer; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .photo-preview { width: 100%; height: 100%; object-fit: cover; }
 .photo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); font-size: 10px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.field-group { display: flex; flex-direction: column; gap: 6px; }
-.field-group.full { grid-column: span 2; }
-.field-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-.modern-input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-size: 13px; outline: none; }
-.modern-input:focus { border-color: var(--accent); }
-.modal-footer { padding: 16px 24px; display: flex; gap: 10px; border-top: 1px solid var(--border-color); }
-.btn-cancel { flex: 1; height: 42px; border-radius: 12px; border: 1.5px solid var(--border-color); background: transparent; font-weight: 700; cursor: pointer; }
-.btn-save { flex: 2; height: 42px; border-radius: 12px; border: none; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.photo-info { flex: 1; }
+.photo-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 8px; }
+.btn-secondary-sm { height: 32px; padding: 0 14px; border-radius: 8px; border: 1.5px solid var(--border-color); background: var(--bg-primary); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; }
+.divider { height: 1px; background: var(--border-color); margin: 16px 0; }
+
+.btn-save { width: 100%; height: 46px; border-radius: 14px; border: none; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.modal-fade-enter-active { transition: opacity 0.25s; }
-.modal-fade-leave-active { transition: opacity 0.2s; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
-@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-@keyframes spin    { to { transform: rotate(360deg); } }
+.modal-enter-active, .modal-leave-active { transition: opacity 0.25s; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-active .modal-panel, .modal-leave-active .modal-panel { transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+.modal-enter-from .modal-panel, .modal-leave-to .modal-panel { transform: scale(0.92); }
 
 @media (max-width: 768px) {
   .page-hero { flex-direction: column; gap: 16px; }
   .employee-grid { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .field-group.full { grid-column: span 1; }
+  .modal-backdrop { align-items: flex-end; padding: 0; background: rgba(0,0,0,0.45); }
+  .modal-panel { max-width: 100%; border-radius: 24px 24px 0 0; max-height: 92vh; }
+  .modal-enter-active .modal-panel, .modal-leave-active .modal-panel { transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); }
+  .modal-enter-from .modal-panel, .modal-leave-to .modal-panel { transform: translateY(100%); }
 }
 </style>

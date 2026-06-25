@@ -25,6 +25,9 @@
           >
             <component :is="t.icon" :size="16" />
             <span>{{ t.label }}</span>
+            <span v-if="t.plan && !isPlanMet(t.plan)" class="plan-badge-tab" :class="t.plan">
+              {{ t.plan.toUpperCase() }}
+            </span>
           </button>
         </div>
       </nav>
@@ -465,95 +468,131 @@
 
           <!-- Google Sheets Settings -->
           <section v-else-if="activeTab === 'googlesheet'" key="googlesheet" class="settings-section">
-            <header class="section-header">
-              <h1 class="section-title">Sinkronisasi Google Sheets</h1>
-              <p class="section-subtitle">Otomatisasi pencatatan transaksi dan stok ke Google Spreadsheet.</p>
-            </header>
-
-            <div class="section-body">
-              <div class="gs-config-card">
-                <!-- Inputs Section -->
-                <div class="field-group full-width">
-                  <div class="field-header">
-                    <label class="field-label">Spreadsheet ID</label>
-                    <span class="field-hint">Ambil dari URL Spreadsheet Anda</span>
-                  </div>
-                  <input 
-                    type="text" 
-                    class="modern-input" 
-                    v-model="shopForm.google_spreadsheet_id" 
-                    placeholder="Contoh: 1a2b3c4d5e6f7g8h9i0j..."
-                  >
+            <div v-if="!isPlanMet('pro')" class="settings-locked-state">
+              <div class="locked-icon-pulse">
+                <div class="icon-orb">
+                  <ShieldCheck :size="32" />
                 </div>
+              </div>
+              <h2 class="premium-title">Fitur Premium Terdeteksi</h2>
+              <p class="premium-desc">
+                Sinkronisasi Google Sheets memerlukan paket <span class="plan-badge-inline pro">PRO</span>.
+              </p>
+              
+              <div class="benefits-mini">
+                <div class="benefit-item">
+                  <CheckCircle :size="14" />
+                  <span>Otomatisasi pencatatan transaksi & stok ke Google Spreadsheet</span>
+                </div>
+                <div class="benefit-item">
+                  <CheckCircle :size="14" />
+                  <span>Integrasi multi-sheet (Transaksi, Stok, Produk, Resep)</span>
+                </div>
+                <div class="benefit-item">
+                  <CheckCircle :size="14" />
+                  <span>Ekspor data realtime ke cloud spreadsheet Anda</span>
+                </div>
+              </div>
 
-                <div class="field-group full-width">
-                  <div class="field-header">
-                    <label class="field-label">Service Account JSON (Key)</label>
-                    <div class="header-actions-inline">
-                      <button class="btn-text-action" @click="$refs.jsonFileInput.click()">
-                        <Upload :size="14" /> Upload File JSON
-                      </button>
-                      <button v-if="shopForm.google_service_account_json" class="btn-text-action danger" @click="shopForm.google_service_account_json = ''">
-                        <Trash2 :size="14" /> Hapus
-                      </button>
+              <div class="action-buttons-inline">
+                <router-link to="/app/billing" class="btn-upgrade-premium">
+                  <Zap :size="18" fill="currentColor" />
+                  <span>Upgrade Sekarang</span>
+                </router-link>
+              </div>
+            </div>
+
+            <div v-else>
+              <header class="section-header">
+                <h1 class="section-title">Sinkronisasi Google Sheets</h1>
+                <p class="section-subtitle">Otomatisasi pencatatan transaksi dan stok ke Google Spreadsheet.</p>
+              </header>
+
+              <div class="section-body">
+                <div class="gs-config-card">
+                  <!-- Inputs Section -->
+                  <div class="field-group full-width">
+                    <div class="field-header">
+                      <label class="field-label">Spreadsheet ID</label>
+                      <span class="field-hint">Ambil dari URL Spreadsheet Anda</span>
                     </div>
+                    <input 
+                      type="text" 
+                      class="modern-input" 
+                      v-model="shopForm.google_spreadsheet_id" 
+                      placeholder="Contoh: 1a2b3c4d5e6f7g8h9i0j..."
+                    >
                   </div>
-                  <input type="file" ref="jsonFileInput" @change="handleJsonPartUpload" hidden accept=".json">
-                  <textarea 
-                    class="modern-input modern-textarea code-area" 
-                    v-model="shopForm.google_service_account_json" 
-                    rows="8" 
-                    placeholder='{ "type": "service_account", ... }'
-                  ></textarea>
-                  <p class="field-info-text">Silakan upload file .json yang didownload dari Google Console, atau tempelkan isinya di sini.</p>
-                </div>
 
-                <div class="gs-sync-row">
-                  <div class="pref-info">
-                    <label class="field-label-bold">Aktifkan Sinkronisasi Otomatis</label>
-                    <p class="pref-desc">Jika aktif, data transaksi akan dikirim ke Spreadsheet setiap kali checkout.</p>
-                  </div>
-                  <label class="modern-switch">
-                    <input type="checkbox" v-model="shopForm.google_sync_enabled">
-                    <span class="switch-slider"></span>
-                  </label>
-                </div>
-
-                <div class="divider-line"></div>
-
-                <!-- Action Buttons -->
-                <div class="gs-action-box">
-                  <button class="btn-primary" @click="saveShopSettings" :disabled="settingStore.loading">
-                    <Save :size="18" /> Simpan Konfigurasi
-                  </button>
-                  <button class="btn-outline" @click="handleSyncAll" :disabled="!shopForm.google_spreadsheet_id">
-                    <RefreshCw :size="18" /> Sync Semua Data Sekarang
-                  </button>
-                </div>
-
-                <div class="divider-line"></div>
-
-                <!-- Info / Tips Section -->
-                <div class="gs-tips-section">
-                  <div class="tips-header">
-                    <div class="tips-icon-wrap">
-                      <Info :size="18" />
+                  <div class="field-group full-width">
+                    <div class="field-header">
+                      <label class="field-label">Service Account JSON (Key)</label>
+                      <div class="header-actions-inline">
+                        <button class="btn-text-action" @click="$refs.jsonFileInput.click()">
+                          <Upload :size="14" /> Upload File JSON
+                        </button>
+                        <button v-if="shopForm.google_service_account_json" class="btn-text-action danger" @click="shopForm.google_service_account_json = ''">
+                          <Trash2 :size="14" /> Hapus
+                        </button>
+                      </div>
                     </div>
-                    <strong>PETUNJUK PENGGUNAAN:</strong>
+                    <input type="file" ref="jsonFileInput" @change="handleJsonPartUpload" hidden accept=".json">
+                    <textarea 
+                      class="modern-input modern-textarea code-area" 
+                      v-model="shopForm.google_service_account_json" 
+                      rows="8" 
+                      placeholder='{ "type": "service_account", ... }'
+                    ></textarea>
+                    <p class="field-info-text">Silakan upload file .json yang didownload dari Google Console, atau tempelkan isinya di sini.</p>
                   </div>
-                  
-                  <div class="tips-content">
-                    <ul class="tips-list">
-                      <li>Pastikan email Service Account sudah ditambahkan sebagai <strong>Editor</strong> di menu Share Spreadsheet.</li>
-                      <li>Sistem akan otomatis membuat sheet/tab baru (Transaksi, Stok, Produk, Resep) jika belum ada.</li>
-                      <li>Gunakan tombol "Sync Semua Data" untuk pertama kalinya agar seluruh data ter-upload.</li>
-                    </ul>
+
+                  <div class="gs-sync-row">
+                    <div class="pref-info">
+                      <label class="field-label-bold">Aktifkan Sinkronisasi Otomatis</label>
+                      <p class="pref-desc">Jika aktif, data transaksi akan dikirim ke Spreadsheet setiap kali checkout.</p>
+                    </div>
+                    <label class="modern-switch">
+                      <input type="checkbox" v-model="shopForm.google_sync_enabled">
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="divider-line"></div>
+
+                  <!-- Action Buttons -->
+                  <div class="gs-action-box">
+                    <button class="btn-primary" @click="saveShopSettings" :disabled="settingStore.loading">
+                      <Save :size="18" /> Simpan Konfigurasi
+                    </button>
+                    <button class="btn-outline" @click="handleSyncAll" :disabled="!shopForm.google_spreadsheet_id">
+                      <RefreshCw :size="18" /> Sync Semua Data Sekarang
+                    </button>
+                  </div>
+
+                  <div class="divider-line"></div>
+
+                  <!-- Info / Tips Section -->
+                  <div class="gs-tips-section">
+                    <div class="tips-header">
+                      <div class="tips-icon-wrap">
+                        <Info :size="18" />
+                      </div>
+                      <strong>PETUNJUK PENGGUNAAN:</strong>
+                    </div>
                     
-                    <div class="tips-footer">
-                      <button class="help-link-btn" @click="showGuide">
-                        <Download :size="14" />
-                        Lihat Panduan Detail
-                      </button>
+                    <div class="tips-content">
+                      <ul class="tips-list">
+                        <li>Pastikan email Service Account sudah ditambahkan sebagai <strong>Editor</strong> di menu Share Spreadsheet.</li>
+                        <li>Sistem akan otomatis membuat sheet/tab baru (Transaksi, Stok, Produk, Resep) jika belum ada.</li>
+                        <li>Gunakan tombol "Sync Semua Data" untuk pertama kalinya agar seluruh data ter-upload.</li>
+                      </ul>
+                      
+                      <div class="tips-footer">
+                        <button class="help-link-btn" @click="showGuide">
+                          <Download :size="14" />
+                          Lihat Panduan Detail
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -652,7 +691,7 @@ import { useRouter } from 'vue-router';
 import { showConfirm, showSuccess, showError } from '../utils/swal';
 import { 
   Printer, Bluetooth, Check, Wifi, ArrowLeft, X, FileSpreadsheet,
-  Settings2, Store, CreditCard, Mail, Database, Camera, Image, Info, Plus, Edit2, Trash2, Banknote, Smartphone, Building2, Save, RefreshCw, Shield, Download, Upload, Eye, ShieldCheck, DollarSign
+  Settings2, Store, CreditCard, Mail, Database, Camera, Image, Info, Plus, Edit2, Trash2, Banknote, Smartphone, Building2, Save, RefreshCw, Shield, Download, Upload, Eye, ShieldCheck, DollarSign, CheckCircle, Zap
 } from 'lucide-vue-next';
 import { usePrinter } from '../composables/usePrinter';
 import { baseUrl } from '../api';
@@ -669,7 +708,7 @@ const allTabs = [
   { id: 'email', label: 'Email (SMTP)', desc: 'Konfigurasi email sistem', icon: markRaw(Mail), color: 'purple' },
   { id: 'database', label: 'Database', desc: 'Backup & Restore data', icon: markRaw(Database), color: 'red' },
   { id: 'printer', label: 'Printer', desc: 'Pengaturan printer struk', icon: markRaw(Printer), color: 'orange' },
-  { id: 'googlesheet', label: 'Google Sheets', desc: 'Sinkronisasi data ke cloud', icon: markRaw(FileSpreadsheet), color: 'green' },
+  { id: 'googlesheet', label: 'Google Sheets', desc: 'Sinkronisasi data ke cloud', icon: markRaw(FileSpreadsheet), color: 'green', plan: 'pro' },
 ];
 
 // Filter tabs based on user role
@@ -688,6 +727,13 @@ const tabs = computed(() => {
 
   return filtered;
 });
+
+const isPlanMet = (requiredPlan) => {
+  if (auth.user?.role === 'superadmin') return true;
+  const currentPlan = auth.user?.tenant?.plan || 'free';
+  const planWeights = { 'free': 0, 'basic': 1, 'pro': 2 };
+  return planWeights[currentPlan] >= planWeights[requiredPlan];
+};
 
 const typeOptions = [
   { value: 'cash', label: 'Tunai', icon: markRaw(Banknote) },
@@ -3072,6 +3118,146 @@ input:checked + .switch-slider:before { transform: translateX(24px); }
   .pricing-matrix { grid-template-columns: 1fr; }
   .current-plan-card { flex-direction: column; align-items: flex-start; gap: 24px; }
   .plan-limits { max-width: 100%; }
+}
+
+/* ── Plan Badges & Locked State ── */
+.plan-badge-tab {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  border: 1px solid currentColor;
+  margin-left: 6px;
+  display: inline-block;
+  line-height: 1;
+}
+
+.plan-badge-tab.pro {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.tab-pill.active .plan-badge-tab.pro {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.settings-locked-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(249,115,22,0.02) 0%, rgba(249,115,22,0.05) 100%);
+  border: 1px dashed rgba(249, 115, 22, 0.2);
+  width: 100%;
+}
+
+.locked-icon-pulse {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+}
+
+.locked-icon-pulse .icon-orb {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 10px 20px -5px rgba(234, 88, 12, 0.3);
+}
+
+.premium-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.premium-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin-bottom: 24px;
+}
+
+.plan-badge-inline {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 11px;
+}
+
+.plan-badge-inline.pro {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+}
+
+.benefits-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: left;
+  max-width: 480px;
+  width: 100%;
+}
+
+.dark .benefits-mini {
+  background: rgba(30, 41, 59, 0.4);
+}
+
+.benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.benefit-item svg {
+  color: #22c55e;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.btn-upgrade-premium {
+  height: 48px;
+  padding: 0 28px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.3s;
+  box-shadow: 0 8px 16px rgba(234, 88, 12, 0.2);
+}
+
+.btn-upgrade-premium:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(234, 88, 12, 0.3);
 }
 
 </style>

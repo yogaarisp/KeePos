@@ -213,6 +213,24 @@ class SettingController extends Controller
                 $group = 'email';
             }
 
+            // Plan protection for Google Sheets
+            if ($group === 'googlesheet') {
+                $tenant = $user->tenant;
+                $isPro = false;
+                if ($user->role === 'superadmin') {
+                    $isPro = true;
+                } elseif ($tenant) {
+                    $planWeights = ['free' => 0, 'basic' => 1, 'pro' => 2];
+                    $currentPlan = $tenant->plan ?: 'free';
+                    $currentWeight = $planWeights[$currentPlan] ?? 0;
+                    $isPro = ($currentWeight >= 2);
+                }
+
+                if (!$isPro) {
+                    continue;
+                }
+            }
+
             TenantSetting::setValue($key, $value, $group);
         }
 
