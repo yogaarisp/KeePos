@@ -67,6 +67,8 @@ defineProps({
   justify-content: center;
   padding: 24px;
   pointer-events: auto;
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(2px);
 }
 
 @media (min-width: 1201px) {

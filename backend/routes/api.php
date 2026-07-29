@@ -22,6 +22,10 @@ use App\Http\Controllers\Api\Admin\TenantController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\EmployeeController;
+use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ProductionController;
 
 Route::get('/', function () {
     return response()->json([
@@ -31,12 +35,13 @@ Route::get('/', function () {
     ]);
 });
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [RegisterController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/login/2fa', [AuthController::class, 'verifyTwoFactor'])->middleware('throttle:10,1');
+Route::post('/register', [RegisterController::class, 'register'])->middleware('throttle:5,1');
 
 // Password Reset Routes
-Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink']);
-Route::post('/reset-password', [PasswordResetController::class, 'reset']);
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:5,10');
+Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:5,10');
 
 // Email Verification Routes
 Route::post('/email/verify-otp', [\App\Http\Controllers\Api\VerificationController::class, 'verifyOTP']);
@@ -45,12 +50,19 @@ Route::post('/email/resend', [\App\Http\Controllers\Api\VerificationController::
 
 Route::get('/settings/public', [SettingController::class, 'publicSettings']);
 Route::get('/subscriptions/plans/public', [SubscriptionController::class, 'plans']);
+Route::get('/settings/bank-accounts/public', [SettingController::class, 'getPublicBankAccounts']);
 
 Route::post('/subscriptions/webhook', [SubscriptionController::class, 'webhook']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/settings/2fa/toggle', [AuthController::class, 'toggleTwoFactor']);
+
+    // Notification Routes
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
 
     // Admin/SaaS Management - No subscription check for superadmin
     Route::middleware('role:superadmin')->prefix('admin')->group(function () {
@@ -58,6 +70,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tenants', [TenantController::class, 'index']);
         Route::get('/tenants/stats', [TenantController::class, 'stats']);
         Route::get('/invoices', [TenantController::class, 'globalInvoices']);
+        Route::patch('/invoices/{id}/approve', [SubscriptionController::class, 'approveManualPayment']);
+        Route::patch('/invoices/{id}/reject', [SubscriptionController::class, 'rejectManualPayment']);
         Route::put('/tenants/{id}', [TenantController::class, 'update']);
         Route::delete('/tenants/{id}', [TenantController::class, 'destroy']);
         
@@ -70,13 +84,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/saas/system-info', [SettingController::class, 'systemInfo']);
         Route::post('/saas/cache/clear', [SettingController::class, 'clearCache']);
         Route::post('/saas/optimize', [SettingController::class, 'optimizeApp']);
+
+        // Bank Account CRUD for manual payment
+        Route::get('/saas/bank-accounts', [SettingController::class, 'getBankAccounts']);
+        Route::post('/saas/bank-accounts', [SettingController::class, 'storeBankAccount']);
+        Route::put('/saas/bank-accounts/{id}', [SettingController::class, 'updateBankAccount']);
+        Route::delete('/saas/bank-accounts/{id}', [SettingController::class, 'destroyBankAccount']);
     });
 
     // Subscription Routes - No subscription check needed for these
     Route::get('/subscriptions/plans', [SubscriptionController::class, 'plans']);
     Route::get('/subscriptions/status', [SubscriptionController::class, 'status']);
     Route::post('/subscriptions/checkout', [SubscriptionController::class, 'checkout']);
+    Route::post('/subscriptions/checkout-manual', [SubscriptionController::class, 'checkoutManual']);
     Route::get('/subscriptions/invoices', [SubscriptionController::class, 'invoices']);
+    Route::post('/subscriptions/invoices/{id}/proof', [SubscriptionController::class, 'uploadInvoiceProof']);
 
     // Tenant routes - Apply subscription check
     Route::middleware('subscription')->group(function () {
@@ -126,6 +148,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/reports/stock', [ReportController::class, 'stockSummary']);
             Route::get('/reports/inventory', [InventoryReportController::class, 'index']);
             Route::get('/reports/export-excel', [ReportController::class, 'exportExcel']);
+            Route::get('/reports/profit', [ReportController::class, 'profitReport']);
         });
 
         // Setting Routes
@@ -135,8 +158,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/settings/db/export', [SettingController::class, 'exportDatabase']);
         Route::post('/settings/db/import', [SettingController::class, 'importDatabase']);
         
-        // Google Sheets Sync - Required Basic Plan
-        Route::middleware('plan:basic')->group(function () {
+        // Google Sheets Sync - Required Pro Plan
+        Route::middleware('plan:pro')->group(function () {
             Route::post('/settings/sync-google-sheet', [SettingController::class, 'syncGoogleSheet']);
             Route::post('/settings/sync-inventory-gsheet', [SettingController::class, 'syncInventoryToGSheet']);
         });
@@ -155,6 +178,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('plan:pro')->group(function () {
             Route::get('/suppliers/stats', [SupplierController::class, 'stats']);
             Route::apiResource('suppliers', SupplierController::class);
+        });
+
+        // Workforce Routes (Employee & Attendance) - Basic+
+        Route::middleware('plan:basic')->group(function () {
+            Route::apiResource('employees', EmployeeController::class);
+            Route::get('/attendance', [AttendanceController::class, 'index']);
+            Route::post('/attendance', [AttendanceController::class, 'store']);
+            Route::put('/attendance/{id}', [AttendanceController::class, 'update']);
+            Route::delete('/attendance/{id}', [AttendanceController::class, 'destroy']);
+            Route::get('/attendance/summary/monthly', [AttendanceController::class, 'monthlySummary']);
         });
 
         // Kitchen Routes - Required Pro
@@ -184,6 +217,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Waste Routes
         Route::get('/waste', [WasteController::class, 'index']);
+        Route::get('/waste/summary', [WasteController::class, 'summary']);
         Route::post('/waste', [WasteController::class, 'store']);
         Route::delete('/waste/{id}', [WasteController::class, 'destroy']);
 
@@ -194,7 +228,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/shifts', [ShiftController::class, 'store']);
         Route::post('/shifts/{id}/close', [ShiftController::class, 'close']);
 
-        // Recipe Routes - Required Pro
+        // Recipe & Production Routes - Required Pro
         Route::middleware('plan:pro')->group(function () {
             Route::get('/recipes', [RecipeController::class, 'index']);
             Route::get('/recipes/ingredients', [RecipeController::class, 'ingredients']);
@@ -204,6 +238,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/recipes/{id}', [RecipeController::class, 'destroy']);
             Route::get('/missing-recipes', [RecipeController::class, 'missingRecipes']);
             Route::delete('/missing-recipes/{productId}', [RecipeController::class, 'dismissMissingRecipe']);
+
+            // Production Batch Tracking
+            Route::get('/production/recipes', [ProductionController::class, 'getRecipes']);
+            Route::post('/production/recipes', [ProductionController::class, 'storeRecipe']);
+            Route::put('/production/recipes/{id}', [ProductionController::class, 'updateRecipe']);
+            Route::delete('/production/recipes/{id}', [ProductionController::class, 'destroyRecipe']);
+            Route::get('/production/transactions', [ProductionController::class, 'index']);
+            Route::post('/production/transactions', [ProductionController::class, 'store']);
+            Route::delete('/production/transactions/{id}', [ProductionController::class, 'destroy']);
         });
 
         // POS Routes

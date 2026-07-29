@@ -12,11 +12,11 @@
 import { onMounted, reactive, watch, provide } from 'vue';
 import { useSettingStore } from './stores/setting';
 import { baseUrl } from './api';
+import { updatePlatformMeta } from './utils/metaTags';
 
 const settingStore = useSettingStore();
 
-// Minimal theme management in a reactive object for now, 
-// can be moved to a proper store if needed.
+// Theme management
 const themeStore = reactive({
   isLight: localStorage.getItem('theme') === 'light',
   toggle() {
@@ -26,37 +26,23 @@ const themeStore = reactive({
   }
 });
 
-const updateFavicon = (url) => {
-  if (!url) return;
-  let link = document.querySelector("link[rel~='icon']");
-  if (!link) {
-    link = document.createElement('link');
-    link.rel = 'icon';
-    document.getElementsByTagName('head')[0].appendChild(link);
+// Watch for settings changes and update all meta tags
+watch(() => settingStore.settings, (settings) => {
+  if (settings && (settings.app_name || settings.shop_name)) {
+    updatePlatformMeta(settings, baseUrl);
   }
-  // Add timestamp as cache buster to force refresh
-  link.href = `${baseUrl}/storage/${url}?v=${new Date().getTime()}`;
-};
-
-watch(() => settingStore.settings.shop_favicon, (newFavicon) => {
-  if (newFavicon) {
-    updateFavicon(newFavicon);
-  }
-});
-
-watch(() => settingStore.settings.shop_name, (newName) => {
-  if (newName && !document.title.includes('|')) {
-    document.title = `${newName} | POS System`;
-  }
-});
+}, { deep: true });
 
 onMounted(async () => {
   document.documentElement.classList.toggle('light', themeStore.isLight);
+
+  // Fetch public settings (logo, favicon, app name, dll)
   await settingStore.fetchPublicSettings();
-  
-  const favicon = settingStore.settings.shop_favicon || settingStore.settings.app_favicon;
-  if (favicon) {
-    updateFavicon(favicon);
+
+  // Apply all meta tags from settings
+  const s = settingStore.settings;
+  if (s && (s.app_name || s.shop_name || s.app_logo || s.app_favicon)) {
+    updatePlatformMeta(s, baseUrl);
   }
 });
 
@@ -65,8 +51,6 @@ provide('theme', themeStore);
 </script>
 
 <style>
-/* App-wide styles already in index.css */
-
 /* Page Transition */
 .page-enter-active,
 .page-leave-active {

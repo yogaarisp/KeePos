@@ -46,8 +46,8 @@
       <section class="login-side">
         <div class="login-card">
           <div class="login-header">
-            <h2>Masuk Akun</h2>
-            <p>Masukkan akses Anda untuk mengelola POS</p>
+            <h2>{{ show2FA ? 'Verifikasi Keamanan' : 'Masuk Akun' }}</h2>
+            <p>{{ show2FA ? 'Masukkan kode 6 digit yang dikirim ke email Anda' : 'Masukkan akses Anda untuk mengelola POS' }}</p>
           </div>
 
           <!-- Error Alert -->
@@ -58,7 +58,8 @@
             </div>
           </Transition>
 
-          <form @submit.prevent="handleLogin" class="clean-form">
+          <!-- Standard Login Form -->
+          <form v-if="!show2FA" @submit.prevent="handleLogin" class="clean-form">
             <div class="form-group">
               <label class="form-label">Alamat Email</label>
               <div class="input-wrapper">
@@ -78,7 +79,7 @@
               <label class="form-label">Kata Sandi</label>
               <div class="input-wrapper">
                 <input 
-                  type="password" 
+                  :type="showPassword ? 'text' : 'password'" 
                   v-model="form.password" 
                   placeholder="••••••••" 
                   required
@@ -86,6 +87,10 @@
                   class="form-control"
                 >
                 <Lock :size="18" class="i-icon" />
+                <button type="button" class="eye-btn" @click="showPassword = !showPassword">
+                  <Eye v-if="showPassword" :size="18" />
+                  <EyeOff v-else :size="18" />
+                </button>
               </div>
             </div>
 
@@ -109,8 +114,51 @@
             </button>
           </form>
 
+          <!-- 2FA OTP Code Verification Form -->
+          <form v-else @submit.prevent="handleVerify2FA" class="clean-form">
+            <div class="form-group text-center">
+              <div class="two-factor-icon-wrapper">
+                <ShieldAlert :size="48" class="text-orange" />
+              </div>
+              <p class="verification-desc">
+                Kode OTP telah dikirim ke: <br><span class="highlight-email">{{ pendingEmail }}</span>
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label text-center">Kode Verifikasi 2FA</label>
+              <div class="input-wrapper">
+                <input 
+                  type="text" 
+                  v-model="otpCode" 
+                  placeholder="000000" 
+                  required
+                  maxlength="6"
+                  pattern="[0-9]*"
+                  autofocus
+                  :disabled="auth.loading"
+                  class="form-control text-center otp-input"
+                >
+                <KeyRound :size="18" class="i-icon" />
+              </div>
+            </div>
+
+            <button type="submit" class="btn-submit" :disabled="auth.loading || otpCode.length !== 6">
+              <RefreshCw v-if="auth.loading" :size="18" class="spinning" />
+              <template v-else>
+                <span>Verifikasi Kode</span>
+                <Check :size="18" />
+              </template>
+            </button>
+
+            <button type="button" class="btn-back-login" @click="backToLogin" :disabled="auth.loading">
+              Kembali ke Login
+            </button>
+          </form>
+
           <footer class="form-footer-minimal">
-            <p>Belum punya akun? <router-link to="/register" class="minimal-link">Daftar Toko</router-link></p>
+            <p v-if="!show2FA">Belum punya akun? <router-link to="/register" class="minimal-link">Daftar Toko</router-link></p>
+            <p style="margin-top: 16px;"><router-link to="/" class="minimal-link flex-link"><ArrowLeft :size="14" /> Kembali ke Halaman Utama</router-link></p>
             <p style="margin-top: 12px; opacity: 0.5;">&copy; 2026 Keetech. Smart POS Ecosystem.</p>
           </footer>
         </div>
@@ -127,7 +175,8 @@ import { useRouter } from 'vue-router';
 import api from '../api';
 import { 
   Sun, Moon, Utensils, Mail, Lock, 
-  RefreshCw, AlertCircle, ArrowRight, Check
+  RefreshCw, AlertCircle, ArrowRight, ArrowLeft, Check,
+  ShieldAlert, KeyRound, Eye, EyeOff
 } from 'lucide-vue-next';
 import { baseUrl } from '../api';
 
@@ -142,6 +191,11 @@ const form = reactive({
   remember: false
 });
 
+const showPassword = ref(false);
+const show2FA = ref(false);
+const pendingEmail = ref('');
+const otpCode = ref('');
+
 onMounted(async () => {
   document.title = 'Login | Kee POS Premium';
   await settingsStore.fetchPublicSettings();
@@ -149,8 +203,12 @@ onMounted(async () => {
 
 const handleLogin = async () => {
   try {
-    const success = await auth.login(form);
-    if (success) {
+    const result = await auth.login(form);
+    if (result && result.two_factor_required) {
+      show2FA.value = true;
+      pendingEmail.value = result.email;
+      auth.error = null;
+    } else if (result === true) {
       router.push('/app');
     }
   } catch (err) {
@@ -159,6 +217,27 @@ const handleLogin = async () => {
       router.push('/register');
     }
   }
+};
+
+const handleVerify2FA = async () => {
+  if (otpCode.value.length !== 6) {
+    auth.error = 'Kode OTP harus berupa 6 digit angka.';
+    return;
+  }
+  try {
+    const success = await auth.verify2fa(pendingEmail.value, otpCode.value);
+    if (success) {
+      router.push('/app');
+    }
+  } catch (err) {
+    // handled by store
+  }
+};
+
+const backToLogin = () => {
+  show2FA.value = false;
+  otpCode.value = '';
+  auth.error = null;
 };
 </script>
 
@@ -382,14 +461,30 @@ const handleLogin = async () => {
 .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
 
 .input-wrapper { position: relative; display: flex; align-items: center; }
-.i-icon { position: absolute; left: 16px; color: var(--text-dim); transition: 0.2s; }
+.i-icon { position: absolute; left: 16px; color: var(--text-dim); transition: 0.2s; pointer-events: none; }
+.eye-btn {
+  position: absolute;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+.eye-btn:hover {
+  color: var(--text-main);
+}
 .form-control {
   width: 100%;
   height: 54px;
   background-color: var(--surface-accent);
   border: 1px solid transparent;
   border-radius: 14px;
-  padding: 0 16px 0 48px;
+  padding: 0 44px 0 48px;
   color: var(--text-main);
   font-size: 14px;
   transition: all 0.2s ease;
@@ -444,11 +539,65 @@ const handleLogin = async () => {
 
 .form-footer-minimal { margin-top: 24px; text-align: center; }
 .form-footer-minimal p { font-size: 13px; color: var(--text-dim); }
-.minimal-link { color: var(--primary); text-decoration: none; font-weight: 600; }
-.minimal-link:hover { text-decoration: underline; }
+.minimal-link { color: var(--primary); text-decoration: none; font-weight: 600; transition: 0.2s; }
+.minimal-link:hover { text-decoration: underline; opacity: 0.8; }
+.flex-link { display: inline-flex; align-items: center; gap: 6px; }
 
 .spinning { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* --- 2FA Specific --- */
+.two-factor-icon-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  background: rgba(249, 115, 22, 0.1);
+  margin: 0 auto 16px;
+  color: var(--primary);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+.verification-desc {
+  font-size: 14.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.highlight-email {
+  color: var(--text-main);
+  font-weight: 700;
+}
+.otp-input {
+  letter-spacing: 8px;
+  font-size: 24px;
+  font-weight: 800;
+  font-family: monospace;
+}
+.btn-back-login {
+  width: 100%;
+  height: 48px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: all 0.2s ease;
+}
+.btn-back-login:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(249, 115, 22, 0.05);
+}
+.text-center {
+  text-align: center;
+}
+.text-orange {
+  color: var(--primary);
+}
 
 /* --- Mobile Responsive --- */
 @media (max-width: 1024px) {

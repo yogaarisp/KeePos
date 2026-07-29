@@ -1,9 +1,14 @@
 import axios from 'axios';
 
-export const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-export const baseUrl = (apiUrl.startsWith('http') ? apiUrl.replace(/\/api\/?$/, '') : '');
-console.log('API URL:', apiUrl);
-console.log('Base URL (Asset Root):', baseUrl || '(Relative to Domain Root)');
+// Get API URL from environment, fallback to production URL
+export const apiUrl = import.meta.env.VITE_API_URL || 'https://pos.keetech.my.id/api';
+export const baseUrl = (apiUrl.startsWith('http') ? apiUrl.replace(/\/api\/?$/, '') : 'https://pos.keetech.my.id');
+
+// Debug logging for development
+if (import.meta.env.DEV) {
+    console.log('API URL:', apiUrl);
+    console.log('Base URL (Asset Root):', baseUrl || '(Relative to Domain Root)');
+}
 
 
 const api = axios.create({
@@ -26,11 +31,17 @@ api.interceptors.request.use(config => {
     if (user && user.tenant) {
         config.headers['X-Tenant-Slug'] = user.tenant.slug;
     }
+
+    // FormData must not use default application/json, and must not set multipart
+    // without boundary — let the browser/axios set multipart + boundary.
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
     
     return config;
 });
 
-// Response interceptor to handle 401 errors
+// Response interceptor to handle 401 & 402 errors
 api.interceptors.response.use(
     response => response,
     error => {
@@ -43,6 +54,14 @@ api.interceptors.response.use(
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('user');
                 window.location.href = '/login';
+            }
+        } else if (error.response?.status === 402) {
+            // Subscription / Trial expired
+            console.warn('⚠️ 402 Payment Required (Subscription Expired):', error.config?.url);
+            
+            const currentPath = window.location.pathname;
+            if (!currentPath.includes('/billing') && !currentPath.includes('/login') && !currentPath.includes('/register')) {
+                window.location.href = '/app/billing?expired=true';
             }
         }
         return Promise.reject(error);

@@ -164,6 +164,86 @@
           </div>
         </div>
       </section>
+
+      <!-- Profit & Margin Report Area -->
+      <section v-if="reportStore.profitData" class="profit-report-area mt-6">
+        <!-- Section Header -->
+        <div class="profit-header">
+          <div class="profit-header-left">
+            <div class="profit-header-icon">
+              <TrendingUp :size="22" />
+            </div>
+            <div>
+              <h2 class="profit-header-title">Laporan Profit &amp; Margin</h2>
+              <p class="profit-header-desc">Analisis laba kotor dan margin per produk</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary Metric Cards -->
+        <div class="profit-metrics-grid">
+          <div class="profit-metric-card">
+            <span class="profit-metric-label">Total Omzet</span>
+            <span class="profit-metric-value">{{ formatCurrency(reportStore.profitData.summary.total_revenue) }}</span>
+          </div>
+          <div class="profit-metric-card">
+            <span class="profit-metric-label">Total HPP</span>
+            <span class="profit-metric-value">{{ formatCurrency(reportStore.profitData.summary.total_cogs) }}</span>
+          </div>
+          <div class="profit-metric-card profit-metric-card--green">
+            <span class="profit-metric-label">Laba Kotor</span>
+            <span class="profit-metric-value profit-value-green">{{ formatCurrency(reportStore.profitData.summary.gross_profit) }}</span>
+          </div>
+          <div class="profit-metric-card profit-metric-card--blue">
+            <span class="profit-metric-label">Gross Margin</span>
+            <span class="profit-metric-value profit-value-blue">{{ reportStore.profitData.summary.gross_margin_pct }}%</span>
+          </div>
+        </div>
+
+        <!-- Missing Cost Warning -->
+        <div v-if="reportStore.profitData.summary.missing_cost_count > 0" class="profit-warning-banner">
+          <AlertTriangle :size="16" class="profit-warning-icon" />
+          <span>
+            <strong>{{ reportStore.profitData.summary.missing_cost_count }} produk</strong> belum memiliki harga pokok (HPP).
+            Atur di <router-link to="/app/products" class="profit-warning-link">halaman Kelola Produk</router-link> untuk hasil akurat.
+          </span>
+        </div>
+
+        <!-- Products Table -->
+        <div class="profit-table-wrap">
+          <div class="table-scroll-wrap">
+            <table class="profit-table">
+              <thead>
+                <tr>
+                  <th>Nama Produk</th>
+                  <th class="text-center">Qty Terjual</th>
+                  <th class="text-right">Omzet</th>
+                  <th class="text-right">HPP</th>
+                  <th class="text-right">Laba Kotor</th>
+                  <th class="text-center">Margin %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="product in reportStore.profitData.products" :key="product.id" class="profit-row">
+                  <td class="profit-product-name">{{ product.name }}</td>
+                  <td class="text-center">
+                    <span class="qty-pill">{{ product.total_qty }} <small>porsi</small></span>
+                  </td>
+                  <td class="text-right profit-cell-revenue">{{ formatCurrency(product.total_revenue) }}</td>
+                  <td class="text-right profit-cell-cogs">{{ formatCurrency(product.total_cogs) }}</td>
+                  <td class="text-right profit-cell-profit">{{ formatCurrency(product.gross_profit) }}</td>
+                  <td class="text-center">
+                    <span v-if="!product.has_cost_price" class="margin-badge margin-badge--none">Belum ada HPP</span>
+                    <span v-else-if="product.margin_pct >= 40" class="margin-badge margin-badge--green">{{ product.margin_pct }}%</span>
+                    <span v-else-if="product.margin_pct >= 20" class="margin-badge margin-badge--yellow">{{ product.margin_pct }}%</span>
+                    <span v-else class="margin-badge margin-badge--red">{{ product.margin_pct }}%</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- Loading State -->
@@ -202,9 +282,13 @@ const summaryMetrics = computed(() => {
 onMounted(() => {
   reportStore.fetchSalesSummary();
   reportStore.fetchStockSummary();
+  reportStore.fetchProfitReport();
 });
 
-const refresh = () => reportStore.fetchSalesSummary();
+const refresh = () => {
+  reportStore.fetchSalesSummary();
+  reportStore.fetchProfitReport();
+};
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('id-ID', {
@@ -458,6 +542,100 @@ const calculatePercentage = (value) => {
   .hero-title { font-size: 14px; }
   .metric-value { font-size: 16px; }
   .analytical-table th:nth-child(3), .a-row td:nth-child(3) { display: none; }
+}
+
+/* ── Profit & Margin Report ── */
+.profit-report-area { display: flex; flex-direction: column; gap: 20px; }
+
+.profit-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(14,165,233,0.04) 100%);
+  border: 1px solid rgba(34,197,94,0.15); border-radius: 20px;
+  padding: 22px 28px;
+}
+.profit-header-left { display: flex; align-items: center; gap: 16px; }
+.profit-header-icon {
+  width: 48px; height: 48px; border-radius: 14px;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; box-shadow: 0 6px 18px rgba(34,197,94,0.25);
+}
+.profit-header-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+.profit-header-desc { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+
+.profit-metrics-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+}
+.profit-metric-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 20px; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.profit-metric-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px -8px rgba(0,0,0,0.1); }
+.profit-metric-card--green { border-color: rgba(34,197,94,0.2); }
+.profit-metric-card--blue { border-color: rgba(14,165,233,0.2); }
+.profit-metric-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.profit-metric-value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.profit-value-green { color: var(--success); }
+.profit-value-blue { color: var(--info); }
+
+.profit-warning-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 14px; padding: 14px 20px;
+  font-size: 13px; color: var(--text-secondary);
+}
+.profit-warning-icon { color: #f59e0b; flex-shrink: 0; }
+.profit-warning-link { color: var(--accent); font-weight: 600; text-decoration: none; }
+.profit-warning-link:hover { text-decoration: underline; }
+
+.profit-table-wrap {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 24px; overflow: hidden;
+}
+.profit-table { width: 100%; border-collapse: collapse; }
+.profit-table thead tr { border-bottom: 1px solid var(--border-color); }
+.profit-table th {
+  padding: 16px 20px; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px;
+  text-align: left;
+}
+.profit-row { border-bottom: 1px solid var(--border-color); transition: background 0.15s; }
+.profit-row:last-child { border-bottom: none; }
+.profit-row:hover { background: var(--bg-primary); }
+.profit-row td { padding: 14px 20px; }
+.profit-product-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.profit-cell-revenue { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.profit-cell-cogs { font-size: 13px; color: var(--text-muted); }
+.profit-cell-profit { font-size: 13px; font-weight: 700; color: var(--success); }
+
+.margin-badge {
+  display: inline-block; padding: 4px 10px; border-radius: 100px;
+  font-size: 11px; font-weight: 700;
+}
+.margin-badge--green { background: rgba(34,197,94,0.12); color: #16a34a; border: 1px solid rgba(34,197,94,0.25); }
+.margin-badge--yellow { background: rgba(245,158,11,0.12); color: #b45309; border: 1px solid rgba(245,158,11,0.25); }
+.margin-badge--red { background: rgba(239,68,68,0.12); color: #dc2626; border: 1px solid rgba(239,68,68,0.25); }
+.margin-badge--none { background: var(--bg-primary); color: var(--text-muted); border: 1px solid var(--border-color); }
+
+@media (max-width: 1200px) {
+  .profit-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .profit-header { padding: 16px; border-radius: 16px; }
+  .profit-header-icon { width: 38px; height: 38px; border-radius: 10px; }
+  .profit-header-title { font-size: 15px; }
+  .profit-metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .profit-metric-card { padding: 14px 16px; border-radius: 14px; }
+  .profit-metric-value { font-size: 16px; }
+  .profit-table-wrap { border-radius: 16px; }
+  .profit-table th, .profit-row td { padding: 12px 14px; }
+  .profit-table th:nth-child(4), .profit-row td:nth-child(4) { display: none; }
+}
+@media (max-width: 480px) {
+  .profit-metrics-grid { grid-template-columns: 1fr 1fr; }
+  .profit-table th:nth-child(3), .profit-row td:nth-child(3) { display: none; }
 }
 
 .mt-6 { margin-top: 24px; }

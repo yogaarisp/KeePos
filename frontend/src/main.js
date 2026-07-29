@@ -15,11 +15,9 @@ app.mount('#app')
 // Initialize native plugins (Capacitor) after mount
 initNativeApp()
 
-// Register Service Worker for PWA
+// Service Worker dinonaktifkan - unregister semua SW yang ada
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(err => {
-      console.log('SW registration failed: ', err);
-    });
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(reg => reg.unregister());
   });
 }

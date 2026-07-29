@@ -1,20 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
-import Login from '../views/Login.vue';
-import Dashboard from '../views/Dashboard.vue';
-import LandingView from '../views/LandingView.vue';
 
 const routes = [
     {
         path: '/',
         name: 'Landing',
-        component: LandingView,
+        component: () => import('../views/LandingView.vue'),
         meta: { guest: false } // Landing can be seen by both
     },
     {
         path: '/login',
         name: 'Login',
-        component: Login,
+        component: () => import('../views/Login.vue'),
         meta: { guest: true }
     },
     {
@@ -43,7 +40,7 @@ const routes = [
     },
     {
         path: '/app',
-        component: Dashboard,
+        component: () => import('../views/Dashboard.vue'),
         meta: { auth: true },
         children: [
             {
@@ -149,6 +146,12 @@ const routes = [
                 meta: { title: 'Resep Masakan', requiredPlan: 'pro' }
             },
             {
+                path: 'production',
+                name: 'Production',
+                component: () => import('../views/Production.vue'),
+                meta: { title: 'Produksi Batch', requiredPlan: 'pro' }
+            },
+            {
                 path: 'units',
                 name: 'Units',
                 component: () => import('../views/Units.vue'),
@@ -159,6 +162,18 @@ const routes = [
                 name: 'Billing',
                 component: () => import('../views/Billing.vue'),
                 meta: { title: 'Langganan & Billing', auth: true }
+            },
+            {
+                path: 'employees',
+                name: 'Employees',
+                component: () => import('../views/Employees.vue'),
+                meta: { title: 'Manajemen Karyawan', requiredPlan: 'basic' }
+            },
+            {
+                path: 'attendance',
+                name: 'Attendance',
+                component: () => import('../views/Attendance.vue'),
+                meta: { title: 'Absensi Karyawan', requiredPlan: 'basic' }
             },
             {
                 path: 'admin/tenants',
@@ -190,7 +205,9 @@ const routes = [
 
 const router = createRouter({
     history: createWebHistory(),
-    routes
+    routes,
+    // Prevent automatic trailing slash addition
+    strict: true
 });
 
 router.beforeEach((to, from, next) => {
@@ -207,6 +224,35 @@ router.beforeEach((to, from, next) => {
     } else {
         next();
     }
+});
+
+// Handle chunk loading/preloading errors (like 404s after a new deployment)
+router.onError((error, to) => {
+    const errorMessages = [
+        'Failed to fetch dynamically imported module',
+        'Unable to preload CSS',
+        'Failed to fetch'
+    ];
+    
+    const isChunkError = errorMessages.some(msg => error.message && error.message.includes(msg));
+    
+    if (isChunkError) {
+        const reloadKey = `chunk-load-failed-${to.path}`;
+        const hasReloaded = sessionStorage.getItem(reloadKey);
+        
+        if (!hasReloaded) {
+            sessionStorage.setItem(reloadKey, 'true');
+            console.warn('Chunk load error detected. Reloading page to fetch latest version...', error);
+            window.location.reload();
+        } else {
+            console.error('Repeated chunk loading error. Page already reloaded once.', error);
+        }
+    }
+});
+
+router.afterEach((to) => {
+    const reloadKey = `chunk-load-failed-${to.path}`;
+    sessionStorage.removeItem(reloadKey);
 });
 
 export default router;

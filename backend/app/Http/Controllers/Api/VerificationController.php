@@ -56,6 +56,9 @@ class VerificationController extends Controller
         $otp->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Send welcome email (queued)
+        $user->notify(new \App\Notifications\WelcomeNotification());
+
         return response()->json([
             'success' => true,
             'message' => 'Email berhasil diverifikasi!',

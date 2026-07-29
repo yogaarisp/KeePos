@@ -24,6 +24,10 @@ export const useAuthStore = defineStore('auth', {
                 await axios.get(`${baseUrl}/sanctum/csrf-cookie`, { withCredentials: true });
 
                 const response = await api.post('/login', credentials);
+                if (response.data.two_factor_required) {
+                    return { two_factor_required: true, email: response.data.email };
+                }
+
                 this.user = response.data.user;
                 this.token = response.data.access_token;
 
@@ -34,6 +38,25 @@ export const useAuthStore = defineStore('auth', {
             } catch (err) {
                 this.error = err.response?.data?.message || 'Login failed';
                 throw err; // Propagate error for specific handling (like 403 verification)
+            } finally {
+                this.loading = false;
+            }
+        },
+        async verify2fa(email, code) {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await api.post('/login/2fa', { email, code });
+                this.user = response.data.user;
+                this.token = response.data.access_token;
+
+                localStorage.setItem('auth_token', this.token);
+                localStorage.setItem('user', JSON.stringify(this.user));
+
+                return true;
+            } catch (err) {
+                this.error = err.response?.data?.message || 'Verifikasi 2FA gagal';
+                throw err;
             } finally {
                 this.loading = false;
             }

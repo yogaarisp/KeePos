@@ -59,7 +59,7 @@
       <div v-for="(product, idx) in prodStore.products" :key="product.id" 
            class="menu-card" :style="{ animationDelay: (idx * 0.05) + 's' }">
         <div class="card-image">
-          <img v-if="product.image" :src="'/storage/' + product.image" :alt="product.name" loading="lazy">
+          <img v-if="product.image" :src="baseUrl + '/storage/' + product.image" :alt="product.name" loading="lazy">
           <div v-else class="image-empty">
             <Utensils :size="40" />
           </div>
@@ -157,23 +157,32 @@
                   <label class="input-label">Nama Menu</label>
                   <input type="text" v-model="modal.form.name" class="premium-input" placeholder="Contoh: Ayam Goreng Kremes">
                 </div>
+
+                <div class="input-group">
+                  <label class="input-label">Kategori <span style="color:var(--danger)">*</span></label>
+                  <select v-model="modal.form.category_id" class="premium-input">
+                    <option value="" disabled>-- Pilih Kategori --</option>
+                    <option v-for="cat in prodStore.categories" :key="cat.id" :value="cat.id">
+                      {{ cat.name }}
+                    </option>
+                  </select>
+                </div>
                 
                 <div class="form-row-2">
                   <div class="input-group">
-                    <label class="input-label">Harga (Rp)</label>
+                    <label class="input-label">Harga Jual (Rp)</label>
                     <div class="currency-input">
                       <span class="curr-symbol">Rp</span>
                       <input type="number" v-model="modal.form.price" class="premium-input pl-10" placeholder="0">
                     </div>
                   </div>
                   <div class="input-group">
-                    <label class="input-label">Kategori</label>
-                    <select v-model="modal.form.category_id" class="premium-input">
-                      <option value="">Pilih Kategori</option>
-                      <option v-for="cat in prodStore.categories" :key="cat.id" :value="cat.id">
-                        {{ cat.name }}
-                      </option>
-                    </select>
+                    <label class="input-label">HPP / Harga Modal (Rp)</label>
+                    <div class="currency-input">
+                      <span class="curr-symbol">Rp</span>
+                      <input type="number" v-model="modal.form.cost_price" class="premium-input pl-10" placeholder="0">
+                    </div>
+                    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Untuk kalkulasi profit & margin</p>
                   </div>
                 </div>
 
@@ -317,12 +326,19 @@ const save = async () => {
 
   const formData = new FormData();
   const data = { ...modal.form };
-  delete data.image; // handled separately
+  delete data.image;    // handled separately
   delete data.category; // remove relation object
+  delete data.custom_categories; // remove relation
+  delete data.customCategories;  // remove relation
   
   Object.keys(data).forEach(key => {
     if (data[key] !== null && data[key] !== undefined) {
-      formData.append(key, data[key]);
+      // Boolean harus dikonversi ke string '1'/'0' untuk FormData
+      if (typeof data[key] === 'boolean') {
+        formData.append(key, data[key] ? '1' : '0');
+      } else {
+        formData.append(key, data[key]);
+      }
     }
   });
   
@@ -335,6 +351,8 @@ const save = async () => {
   
   if (success) {
     modal.show = false;
+    imagePreview.value = null;
+    imageFile.value = null;
     showSuccess(isEdit ? 'Menu berhasil diperbarui!' : 'Menu berhasil ditambahkan!');
   } else {
     showError(prodStore.error || 'Gagal menyimpan menu');
@@ -434,10 +452,17 @@ onUnmounted(() => {
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .filter-select {
-  height: 44px; padding: 0 16px; border-radius: 14px;
+  height: 44px; padding: 0 36px 0 16px; border-radius: 14px;
   background: var(--bg-primary); border: 1px solid var(--border-color);
   color: var(--text-primary); font-weight: 600; font-size: 13px; outline: none; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
+.filter-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg, rgba(99,102,241,0.1)); }
+.filter-select:hover { border-color: var(--accent); }
 
 .btn-refresh {
   width: 44px; height: 44px; border-radius: 14px;

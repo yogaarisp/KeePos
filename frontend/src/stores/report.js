@@ -5,6 +5,7 @@ export const useReportStore = defineStore('report', {
     state: () => ({
         salesData: null,
         stockData: null,
+        profitData: null,
         filters: {
             start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
             end_date: new Date().toISOString().split('T')[0],
@@ -37,6 +38,21 @@ export const useReportStore = defineStore('report', {
             } catch (err) {
                 this.error = 'Gagal memuat laporan stok';
             }
-        }
+        },
+
+        async fetchProfitReport() {
+            this.loading = true;
+            try {
+                const response = await api.get('/reports/profit', { params: this.filters });
+                if (response.data.success) {
+                    this.profitData = response.data.data;
+                }
+            } catch (err) {
+                // Plan restriction - silently fail
+                this.profitData = null;
+            } finally {
+                this.loading = false;
+            }
+        },
     }
 });

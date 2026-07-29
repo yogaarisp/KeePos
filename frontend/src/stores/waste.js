@@ -14,6 +14,12 @@ export const useWasteStore = defineStore('waste', {
             end_date: '',
             source_type: '',
         },
+        summary: null,
+        summaryFilters: {
+            start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+            end_date: new Date().toISOString().split('T')[0],
+        },
+        summaryData: null,
         loading: false,
         error: null,
     }),
@@ -33,10 +39,22 @@ export const useWasteStore = defineStore('waste', {
                     this.reports = data;
                     this.pagination = { current_page, last_page, total };
                 }
+                this.fetchSummary();
             } catch (err) {
                 this.error = 'Gagal memuat laporan waste';
             } finally {
                 this.loading = false;
+            }
+        },
+
+        async fetchSummary() {
+            try {
+                const response = await api.get('/waste/summary', { params: this.filters });
+                if (response.data.success) {
+                    this.summaryData = response.data.data;
+                }
+            } catch (err) {
+                this.summaryData = null;
             }
         },
 

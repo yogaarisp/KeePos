@@ -32,7 +32,7 @@ class SettingController extends Controller
              // Tenant user: get tenant-specific settings
              $settings = TenantSetting::all();
              
-             // Get tenant profile
+             // Get tenant profile - always ensure it exists
              $profile = $user->tenant ? $user->tenant->getOrCreateProfile() : null;
         }
 
@@ -44,7 +44,20 @@ class SettingController extends Controller
                 'settings' => $settings,
                 'payment_methods' => $paymentMethods,
                 'tenant' => $user->tenant,
-                'profile' => $profile
+                'profile' => $profile ? [
+                    'shop_name'     => $profile->shop_name,
+                    'shop_logo'     => $profile->shop_logo,
+                    'shop_favicon'  => $profile->shop_favicon,
+                    'shop_tagline'  => $profile->shop_tagline,
+                    'shop_address'  => $profile->shop_address,
+                    'shop_phone'    => $profile->shop_phone,
+                    'shop_email'    => $profile->shop_email,
+                    'primary_color' => $profile->primary_color,
+                    'secondary_color' => $profile->secondary_color,
+                    'receipt_header' => $profile->receipt_header,
+                    'receipt_footer' => $profile->receipt_footer,
+                    'show_logo_on_receipt' => $profile->show_logo_on_receipt,
+                ] : null
             ]
         ]);
     }
@@ -126,7 +139,7 @@ class SettingController extends Controller
             // Ambil data profil dari settings
             if (isset($settingsData['shop_name'])) {
                 $profileData['shop_name'] = $settingsData['shop_name'];
-                unset($settingsData['shop_name']); // Remove from settings
+                unset($settingsData['shop_name']);
             }
             if (isset($settingsData['shop_tagline'])) {
                 $profileData['shop_tagline'] = $settingsData['shop_tagline'];
@@ -144,6 +157,10 @@ class SettingController extends Controller
                 $profileData['shop_email'] = $settingsData['shop_email'];
                 unset($settingsData['shop_email']);
             }
+            if (isset($settingsData['shop_favicon'])) {
+                $profileData['shop_favicon'] = $settingsData['shop_favicon'];
+                unset($settingsData['shop_favicon']);
+            }
             
             // Update profile jika ada data
             if (!empty($profileData)) {
@@ -153,17 +170,29 @@ class SettingController extends Controller
         
         // Handle file uploads untuk profile
         if ($request->hasFile('shop_logo')) {
-            $path = $request->file('shop_logo')->store('tenants/logos', 'public');
             if ($user->tenant) {
                 $profile = $user->tenant->getOrCreateProfile();
+                
+                // Hapus logo lama jika ada
+                if ($profile->shop_logo && \Storage::disk('public')->exists($profile->shop_logo)) {
+                    \Storage::disk('public')->delete($profile->shop_logo);
+                }
+                
+                $path = $request->file('shop_logo')->store('tenants/logos', 'public');
                 $profile->update(['shop_logo' => $path]);
             }
         }
         
         if ($request->hasFile('shop_favicon')) {
-            $path = $request->file('shop_favicon')->store('tenants/favicons', 'public');
             if ($user->tenant) {
                 $profile = $user->tenant->getOrCreateProfile();
+                
+                // Hapus favicon lama jika ada
+                if ($profile->shop_favicon && \Storage::disk('public')->exists($profile->shop_favicon)) {
+                    \Storage::disk('public')->delete($profile->shop_favicon);
+                }
+                
+                $path = $request->file('shop_favicon')->store('tenants/favicons', 'public');
                 $profile->update(['shop_favicon' => $path]);
             }
         }
@@ -182,6 +211,24 @@ class SettingController extends Controller
                 $group = 'printer';
             } elseif (strpos($key, 'smtp_') === 0) {
                 $group = 'email';
+            }
+
+            // Plan protection for Google Sheets
+            if ($group === 'googlesheet') {
+                $tenant = $user->tenant;
+                $isPro = false;
+                if ($user->role === 'superadmin') {
+                    $isPro = true;
+                } elseif ($tenant) {
+                    $planWeights = ['free' => 0, 'basic' => 1, 'pro' => 2];
+                    $currentPlan = $tenant->plan ?: 'free';
+                    $currentWeight = $planWeights[$currentPlan] ?? 0;
+                    $isPro = ($currentWeight >= 2);
+                }
+
+                if (!$isPro) {
+                    continue;
+                }
             }
 
             TenantSetting::setValue($key, $value, $group);
@@ -524,50 +571,75 @@ class SettingController extends Controller
 
     public function getSaaSConfig()
     {
+        // Helper to safely decode JSON features
+        $decodeFeatures = function(string $key, array $default = []) {
+            $raw = PlatformSetting::getValue($key);
+            if (!$raw) return $default;
+            $decoded = json_decode($raw, true);
+            return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : $default;
+        };
+
         return response()->json([
             'success' => true,
             'data' => [
-                'app_name' => PlatformSetting::getValue('app_name', 'Kee POS'),
-                'app_logo' => PlatformSetting::getValue('app_logo'),
-                'app_favicon' => PlatformSetting::getValue('app_favicon'),
-                'midtrans_server_key' => PlatformSetting::getValue('midtrans_server_key'),
-                'midtrans_client_key' => PlatformSetting::getValue('midtrans_client_key'),
-                'midtrans_is_production' => PlatformSetting::getValue('midtrans_is_production', false),
-                'plan_basic_price' => PlatformSetting::getValue('plan_basic_price', 149000),
-                'plan_pro_price' => PlatformSetting::getValue('plan_pro_price', 299000),
-                'plan_free_features' => json_decode(PlatformSetting::getValue('plan_free_features', '[]'), true),
-                'plan_basic_features' => json_decode(PlatformSetting::getValue('plan_basic_features', '[]'), true),
-                'plan_pro_features' => json_decode(PlatformSetting::getValue('plan_pro_features', '[]'), true),
-                'default_trial_days' => (int)PlatformSetting::getValue('default_trial_days', 20),
+                // Identity
+                'app_name'              => PlatformSetting::getValue('app_name', 'Kee POS'),
+                'app_whatsapp'          => PlatformSetting::getValue('app_whatsapp', ''),
+                'app_logo'              => PlatformSetting::getValue('app_logo'),
+                'app_favicon'           => PlatformSetting::getValue('app_favicon'),
+
+                // Payment Gateway
+                'active_payment_gateway'=> PlatformSetting::getValue('active_payment_gateway', 'midtrans'),
                 
-                // SMTP Config
-                'smtp_host' => PlatformSetting::getValue('smtp_host'),
-                'smtp_port' => PlatformSetting::getValue('smtp_port', 587),
-                'smtp_username' => PlatformSetting::getValue('smtp_username'),
-                'smtp_password' => PlatformSetting::getValue('smtp_password'),
-                'smtp_encryption' => PlatformSetting::getValue('smtp_encryption', 'tls'),
-                'smtp_from_address' => PlatformSetting::getValue('smtp_from_address'),
-                'smtp_from_name' => PlatformSetting::getValue('smtp_from_name'),
+                // Midtrans
+                'midtrans_server_key'   => PlatformSetting::getValue('midtrans_server_key', ''),
+                'midtrans_client_key'   => PlatformSetting::getValue('midtrans_client_key', ''),
+                'midtrans_is_production'=> PlatformSetting::getValue('midtrans_is_production', '0'),
+
+                // Xendit
+                'xendit_secret_key'     => PlatformSetting::getValue('xendit_secret_key', ''),
+                'xendit_webhook_token'  => PlatformSetting::getValue('xendit_webhook_token', ''),
+
+                // Pricing
+                'plan_basic_price'      => (int) PlatformSetting::getValue('plan_basic_price', 99000),
+                'plan_pro_price'        => (int) PlatformSetting::getValue('plan_pro_price', 299000),
+                'default_trial_days'    => (int) PlatformSetting::getValue('default_trial_days', 20),
+
+                // Features (always return array)
+                'plan_free_features'    => $decodeFeatures('plan_free_features', ['1 Akun (Owner)', 'Kasir POS Desktop', 'Laporan Harian']),
+                'plan_basic_features'   => $decodeFeatures('plan_basic_features', ['2 Akun (Owner + Kasir)', 'Pengaturan Stok Gudang', 'Export Excel Laporan']),
+                'plan_pro_features'     => $decodeFeatures('plan_pro_features', ['Akun Tanpa Batas', 'Resep & Stok Dapur', 'Inventory Report', 'Google Sheets Sync', 'Support Prioritas']),
+
+                // SMTP
+                'smtp_host'             => PlatformSetting::getValue('smtp_host', ''),
+                'smtp_port'             => PlatformSetting::getValue('smtp_port', '587'),
+                'smtp_username'         => PlatformSetting::getValue('smtp_username', ''),
+                'smtp_password'         => PlatformSetting::getValue('smtp_password', ''),
+                'smtp_encryption'       => PlatformSetting::getValue('smtp_encryption', 'tls'),
+                'smtp_from_address'     => PlatformSetting::getValue('smtp_from_address', ''),
+                'smtp_from_name'        => PlatformSetting::getValue('smtp_from_name', ''),
             ]
         ]);
     }
 
     public function updateSaaSConfig(Request $request)
     {
+        // No required validation - allow partial updates from any tab
         $request->validate([
-            'app_name' => 'required|string|max:100',
+            'app_name' => 'nullable|string|max:100',
         ]);
 
+        // Simple key-value fields
         $keys = [
             'app_name' => 'platform',
+            'active_payment_gateway' => 'platform',
             'midtrans_server_key' => 'platform',
             'midtrans_client_key' => 'platform',
             'midtrans_is_production' => 'platform',
+            'xendit_secret_key' => 'platform',
+            'xendit_webhook_token' => 'platform',
             'plan_basic_price' => 'platform',
             'plan_pro_price' => 'platform',
-            'plan_free_features' => 'platform',
-            'plan_basic_features' => 'platform',
-            'plan_pro_features' => 'platform',
             'default_trial_days' => 'platform',
             'app_whatsapp' => 'platform',
             'smtp_host' => 'email',
@@ -585,14 +657,70 @@ class SettingController extends Controller
             }
         }
 
+        // Feature arrays - ensure stored as valid JSON string
+        $featureKeys = ['plan_free_features', 'plan_basic_features', 'plan_pro_features'];
+        foreach ($featureKeys as $key) {
+            if ($request->has($key)) {
+                $value = $request->get($key);
+                // If already a string, validate it's valid JSON; if array, encode it
+                if (is_array($value)) {
+                    $value = json_encode(array_values(array_filter($value, fn($v) => $v !== '')));
+                } elseif (is_string($value)) {
+                    // Validate it's valid JSON, fallback to empty array
+                    $decoded = json_decode($value, true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        $value = '[]';
+                    } else {
+                        // Re-encode to ensure clean JSON (filter empty strings)
+                        $value = json_encode(array_values(array_filter($decoded, fn($v) => $v !== '')));
+                    }
+                } else {
+                    $value = '[]';
+                }
+                PlatformSetting::setValue($key, $value, 'platform');
+            }
+        }
+
         if ($request->hasFile('app_logo')) {
-            $path = $request->file('app_logo')->store('platform', 'public');
+            $file = $request->file('app_logo');
+            
+            // 1. Simpan ke storage (untuk ditampilkan di UI)
+            $path = $file->store('platform', 'public');
             PlatformSetting::setValue('app_logo', $path, 'platform');
+            
+            // 2. Replace file fisik di public/ agar favicon & PWA icon ikut update
+            $publicPath = public_path();
+            $file->move($publicPath, 'logo-192.png');
+            
+            // Copy juga sebagai logo-512.png dan apple-touch-icon.png
+            copy($publicPath . '/logo-192.png', $publicPath . '/logo-512.png');
+            copy($publicPath . '/logo-192.png', $publicPath . '/apple-touch-icon.png');
         }
 
         if ($request->hasFile('app_favicon')) {
-            $path = $request->file('app_favicon')->store('platform', 'public');
+            $file = $request->file('app_favicon');
+            
+            // 1. Simpan ke storage
+            $path = $file->store('platform', 'public');
             PlatformSetting::setValue('app_favicon', $path, 'platform');
+            
+            // 2. Replace favicon.ico di public/
+            $publicPath = public_path();
+            $ext = strtolower($file->getClientOriginalExtension());
+            
+            if ($ext === 'ico') {
+                // Langsung replace favicon.ico
+                copy(\Storage::disk('public')->path($path), $publicPath . '/favicon.ico');
+            } else {
+                // PNG/JPG: simpan sebagai favicon.png dan update link di index.html tidak perlu
+                // karena index.html sudah pakai logo-192.png sebagai fallback
+                copy(\Storage::disk('public')->path($path), $publicPath . '/favicon.png');
+                // Juga replace logo-192 jika belum ada logo upload
+                if (!$request->hasFile('app_logo')) {
+                    copy(\Storage::disk('public')->path($path), $publicPath . '/logo-192.png');
+                    copy(\Storage::disk('public')->path($path), $publicPath . '/apple-touch-icon.png');
+                }
+            }
         }
 
         return response()->json([
@@ -933,6 +1061,162 @@ class SettingController extends Controller
             'details' => $results
         ]);
     }
+
+    // ─── SaaS Bank Account CRUD ───────────────────────────────────
+
+    /**
+     * Get all SaaS bank accounts (admin).
+     */
+    public function getBankAccounts()
+    {
+        $accounts = $this->decodeBankAccounts();
+
+        return response()->json([
+            'success' => true,
+            'data' => $accounts,
+        ]);
+    }
+
+    /**
+     * Get bank accounts (public – used by tenant Billing page).
+     */
+    public function getPublicBankAccounts()
+    {
+        $accounts = collect($this->decodeBankAccounts())
+            ->where('is_active', true)
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $accounts,
+        ]);
+    }
+
+    /**
+     * Store a new bank account.
+     */
+    public function storeBankAccount(Request $request)
+    {
+        $request->validate([
+            'bank_name'      => 'required|string|max:100',
+            'account_number' => 'required|string|max:50',
+            'account_holder' => 'required|string|max:100',
+        ]);
+
+        $accounts = $this->decodeBankAccounts();
+
+        if (count($accounts) >= 3) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Maksimal 3 rekening bank yang dapat ditambahkan.',
+            ], 422);
+        }
+
+        $newAccount = [
+            'id'             => (string) \Illuminate\Support\Str::uuid(),
+            'bank_name'      => $request->bank_name,
+            'account_number' => $request->account_number,
+            'account_holder' => $request->account_holder,
+            'is_active'      => true,
+            'created_at'     => now()->toDateTimeString(),
+        ];
+
+        $accounts[] = $newAccount;
+        $this->saveBankAccounts($accounts);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekening bank berhasil ditambahkan.',
+            'data'    => $newAccount,
+        ]);
+    }
+
+    /**
+     * Update an existing bank account.
+     */
+    public function updateBankAccount(Request $request, string $id)
+    {
+        $request->validate([
+            'bank_name'      => 'required|string|max:100',
+            'account_number' => 'required|string|max:50',
+            'account_holder' => 'required|string|max:100',
+            'is_active'      => 'required|boolean',
+        ]);
+
+        $accounts = $this->decodeBankAccounts();
+        $found = false;
+
+        foreach ($accounts as &$account) {
+            if ($account['id'] === $id) {
+                $account['bank_name']      = $request->bank_name;
+                $account['account_number'] = $request->account_number;
+                $account['account_holder'] = $request->account_holder;
+                $account['is_active']      = $request->is_active;
+                $found = true;
+                break;
+            }
+        }
+        unset($account);
+
+        if (!$found) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rekening tidak ditemukan.',
+            ], 404);
+        }
+
+        $this->saveBankAccounts($accounts);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekening bank berhasil diperbarui.',
+            'data'    => $accounts,
+        ]);
+    }
+
+    /**
+     * Delete a bank account.
+     */
+    public function destroyBankAccount(string $id)
+    {
+        $accounts = $this->decodeBankAccounts();
+        $filtered = array_values(array_filter($accounts, fn($a) => $a['id'] !== $id));
+
+        if (count($filtered) === count($accounts)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rekening tidak ditemukan.',
+            ], 404);
+        }
+
+        $this->saveBankAccounts($filtered);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekening bank berhasil dihapus.',
+        ]);
+    }
+
+    /**
+     * Decode bank accounts from PlatformSetting.
+     */
+    private function decodeBankAccounts(): array
+    {
+        $raw = PlatformSetting::getValue('saas_bank_accounts');
+        if (!$raw) return [];
+        $decoded = json_decode($raw, true);
+        return (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+    }
+
+    /**
+     * Persist bank accounts to PlatformSetting.
+     */
+    private function saveBankAccounts(array $accounts): void
+    {
+        PlatformSetting::setValue('saas_bank_accounts', json_encode(array_values($accounts)), 'platform');
+    }
+
+    // ─── End Bank Account CRUD ─────────────────────────────────────
 
     /**
      * Format bytes to human readable

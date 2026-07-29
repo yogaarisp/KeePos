@@ -56,20 +56,19 @@ export const useProductStore = defineStore('product', {
             }
         },
 
-        async saveProduct(formData) {
+        async saveProduct(formData, productId = null) {
             this.loading = true;
             this.error = null;
             try {
-                const url = formData.get('id') ? `/products/${formData.get('id')}` : '/products';
+                const isEdit = !!productId;
+                const url = isEdit ? `/products/${productId}` : '/products';
 
-                // Laravel spoofing for PUT if editing with files
-                if (formData.get('id')) {
+                // Laravel method spoofing untuk PUT dengan file upload
+                if (isEdit && !formData.has('_method')) {
                     formData.append('_method', 'PUT');
                 }
 
-                const response = await api.post(url, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                const response = await api.post(url, formData);
 
                 if (response.data.success) {
                     await this.fetchProducts(this.pagination.current_page);
@@ -77,8 +76,10 @@ export const useProductStore = defineStore('product', {
                 }
                 return false;
             } catch (err) {
-                console.error('Save product error:', err);
-                this.error = err.response?.data?.message || 'Gagal menyimpan menu';
+                console.error('Save product error:', err.response?.data || err);
+                this.error = err.response?.data?.message 
+                    || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : null)
+                    || 'Gagal menyimpan menu';
                 return false;
             } finally {
                 this.loading = false;

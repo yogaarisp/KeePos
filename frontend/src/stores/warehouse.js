@@ -22,6 +22,7 @@ export const useWarehouseStore = defineStore('warehouse', {
     actions: {
         async fetchItems(page = 1) {
             this.loading = true;
+            this.error = null;
             try {
                 const response = await api.get('/warehouse', {
                     params: {
@@ -42,7 +43,17 @@ export const useWarehouseStore = defineStore('warehouse', {
                     this.categories = categories;
                 }
             } catch (err) {
-                this.error = 'Gagal memuat data stok';
+                const code = err.response?.data?.code;
+                const status = err.response?.status;
+                if (code === 'PLAN_INSUFFICIENT') {
+                    this.error = err.response.data.message || 'Fitur ini membutuhkan paket Basic atau lebih tinggi.';
+                } else if (code === 'SUBSCRIPTION_EXPIRED') {
+                    this.error = 'Masa aktif langganan Anda telah berakhir. Silakan perpanjang di halaman Billing.';
+                } else if (status === 403) {
+                    this.error = err.response?.data?.message || 'Akses ditolak.';
+                } else {
+                    this.error = 'Gagal memuat data stok. Periksa koneksi internet Anda.';
+                }
             } finally {
                 this.loading = false;
             }

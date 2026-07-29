@@ -17,24 +17,48 @@
       </button>
     </div>
 
+    <!-- Date Filter Bar -->
+    <div class="waste-filter-bar">
+      <div class="filter-group">
+        <Calendar :size="14" />
+        <input type="date" v-model="wasteStore.filters.start_date" @change="refreshData" class="filter-input" placeholder="Dari tanggal">
+      </div>
+      <span class="filter-sep">s/d</span>
+      <div class="filter-group">
+        <Calendar :size="14" />
+        <input type="date" v-model="wasteStore.filters.end_date" @change="refreshData" class="filter-input" placeholder="Sampai tanggal">
+      </div>
+      <select v-model="wasteStore.filters.source_type" @change="refreshData" class="filter-select">
+        <option value="">Semua Sumber</option>
+        <option value="gudang">Gudang</option>
+        <option value="kitchen">Dapur</option>
+      </select>
+      <button class="btn-reset-filter" @click="resetFilter" title="Reset Filter">
+        <X :size="14" />
+      </button>
+    </div>
+
     <!-- Stats Overview -->
-    <div class="stats-grid">
+    <div class="stats-grid" v-if="wasteStore.summaryData">
       <div class="stat-card danger">
-        <div class="stat-icon">
-          <AlertTriangle :size="20" />
-        </div>
+        <div class="stat-icon"><AlertTriangle :size="20" /></div>
         <div class="stat-info">
-          <span class="stat-label">Total Waste</span>
-          <span class="stat-value">{{ wasteStore.reports.length }}</span>
+          <span class="stat-label">Total Kejadian</span>
+          <span class="stat-value">{{ wasteStore.summaryData.total_items }}</span>
         </div>
       </div>
       <div class="stat-card warning">
-        <div class="stat-icon">
-          <DollarSign :size="20" />
-        </div>
+        <div class="stat-icon"><DollarSign :size="20" /></div>
         <div class="stat-info">
-          <span class="stat-label">Est. Kerugian</span>
-          <span class="stat-value">{{ formatCurrency(totalLoss) }}</span>
+          <span class="stat-label">Total Kerugian</span>
+          <span class="stat-value">{{ formatCurrency(wasteStore.summaryData.total_loss) }}</span>
+        </div>
+      </div>
+      <div class="stat-card info" v-for="src in wasteStore.summaryData.by_source" :key="src.source_type">
+        <div class="stat-icon"><Package :size="20" /></div>
+        <div class="stat-info">
+          <span class="stat-label">{{ src.source_type === 'gudang' ? 'Gudang' : 'Dapur' }}</span>
+          <span class="stat-value">{{ formatCurrency(src.total_loss) }}</span>
         </div>
       </div>
     </div>
@@ -62,6 +86,7 @@
               <th><div class="th-inner">Bahan</div></th>
               <th><div class="th-inner">Asal</div></th>
               <th class="text-right"><div class="th-inner justify-end">Qty</div></th>
+              <th class="text-right"><div class="th-inner justify-end">Harga/Unit</div></th>
               <th><div class="th-inner">Alasan</div></th>
               <th class="text-right"><div class="th-inner justify-end">Est. Rugi</div></th>
               <th class="text-center"><div class="th-inner justify-center">Aksi</div></th>
@@ -85,6 +110,9 @@
               </td>
               <td data-label="Qty" class="text-right">
                 <span class="qty-val">{{ formatDecimal(r.quantity) }} {{ r.unit }}</span>
+              </td>
+              <td data-label="Harga/Unit" class="text-right">
+                <span class="cost-val">{{ formatCurrency(r.cost_per_unit || 0) }}</span>
               </td>
               <td data-label="Alasan">
                 <span class="reason-text">{{ r.reason || '-' }}</span>
@@ -186,13 +214,15 @@
 
 <script setup>
 import { onMounted, reactive, computed, watch, onUnmounted } from 'vue';
+
 import { useWasteStore } from '../stores/waste';
 import { useWarehouseStore } from '../stores/warehouse';
 import { useKitchenStore } from '../stores/kitchen';
 import { showConfirm, showSuccess, showError } from '../utils/swal';
 import { 
   Trash2, X, Plus, AlertTriangle, DollarSign, FileX, 
-  Package, ChefHat, Check, Save, RefreshCw, ArrowLeft
+  Package, ChefHat, Check, Save, RefreshCw, ArrowLeft,
+  Calendar, TrendingDown
 } from 'lucide-vue-next';
 
 const wasteStore = useWasteStore();
@@ -279,12 +309,100 @@ const handleDelete = async (id) => {
 };
 
 const formatDateShort = (date) => new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-const formatCurrency = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+const formatCurrency = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(val || 0));
 const formatDecimal = (val) => Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+const refreshData = () => {
+  wasteStore.fetchReports();
+};
+
+const resetFilter = () => {
+  wasteStore.resetFilters();
+  wasteStore.fetchReports();
+};
 </script>
 
 <style scoped>
 .waste-container { padding: 0; animation: fadeIn 0.4s ease; }
+
+/* ── Filter Bar ── */
+.waste-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 16px 20px;
+  border-radius: 20px;
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px 14px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+.filter-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.filter-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+.filter-sep {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.filter-select {
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 16px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.btn-reset-filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--danger-bg);
+  border: 1.5px solid rgba(239,68,68,0.2);
+  color: var(--danger);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-reset-filter:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+  transform: translateY(-1px);
+}
 
 /* ── Hero ── */
 .page-hero {
@@ -509,6 +627,31 @@ const formatDecimal = (val) => Number(val || 0).toLocaleString('id-ID', { minimu
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .waste-container { padding: 4px; }
+  .waste-filter-bar {
+    padding: 12px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .filter-input {
+    flex: 1;
+    text-align: right;
+  }
+  .filter-sep {
+    text-align: center;
+    margin: 2px 0;
+  }
+  .filter-select {
+    width: 100%;
+  }
+  .btn-reset-filter {
+    width: 100%;
+    height: 44px;
+  }
   .page-hero { padding: 16px; flex-direction: column; align-items: flex-start; }
   .hero-icon-wrap { width: 36px; height: 36px; }
   .hero-icon-wrap svg { width: 18px; height: 18px; }

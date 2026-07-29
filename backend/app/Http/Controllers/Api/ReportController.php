@@ -65,6 +65,67 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Profit & Margin Report (BASIC+ plan)
+     */
+    public function profitReport(Request $request)
+    {
+        $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
+        $endDate   = $request->get('end_date', now()->format('Y-m-d'));
+
+        // Get sold items with product cost_price
+        $items = DB::table('order_items')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->join('sales', 'order_items.sale_id', '=', 'sales.id')
+            ->where('sales.status', 'completed')
+            ->whereBetween('sales.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->select(
+                'products.id',
+                'products.name',
+                'products.cost_price',
+                DB::raw('SUM(order_items.quantity) as total_qty'),
+                DB::raw('SUM(order_items.subtotal) as total_revenue'),
+                DB::raw('SUM(order_items.quantity * products.cost_price) as total_cogs')
+            )
+            ->groupBy('products.id', 'products.name', 'products.cost_price')
+            ->orderBy('total_revenue', 'desc')
+            ->get();
+
+        $totalRevenue = $items->sum('total_revenue');
+        $totalCogs    = $items->sum('total_cogs');
+        $grossProfit  = $totalRevenue - $totalCogs;
+        $margin       = $totalRevenue > 0 ? round(($grossProfit / $totalRevenue) * 100, 1) : 0;
+
+        // Products with no cost_price set (incomplete data warning)
+        $missingCostCount = $items->where('cost_price', 0)->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_revenue'    => $totalRevenue,
+                    'total_cogs'       => $totalCogs,
+                    'gross_profit'     => $grossProfit,
+                    'gross_margin_pct' => $margin,
+                    'missing_cost_count' => $missingCostCount,
+                ],
+                'products' => $items->map(fn($i) => [
+                    'id'            => $i->id,
+                    'name'          => $i->name,
+                    'total_qty'     => $i->total_qty,
+                    'total_revenue' => $i->total_revenue,
+                    'total_cogs'    => $i->total_cogs,
+                    'gross_profit'  => $i->total_revenue - $i->total_cogs,
+                    'margin_pct'    => $i->total_revenue > 0
+                        ? round((($i->total_revenue - $i->total_cogs) / $i->total_revenue) * 100, 1)
+                        : 0,
+                    'has_cost_price' => $i->cost_price > 0,
+                ]),
+                'date_range' => ['start' => $startDate, 'end' => $endDate],
+            ]
+        ]);
+    }
+
     public function stockSummary()
     {
         $warehouseStock = StokGudang::with('category')->get();
