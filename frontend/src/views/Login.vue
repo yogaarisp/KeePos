@@ -79,7 +79,7 @@
               <label class="form-label">Kata Sandi</label>
               <div class="input-wrapper">
                 <input 
-                  type="password" 
+                  :type="showPassword ? 'text' : 'password'" 
                   v-model="form.password" 
                   placeholder="••••••••" 
                   required
@@ -87,6 +87,10 @@
                   class="form-control"
                 >
                 <Lock :size="18" class="i-icon" />
+                <button type="button" class="eye-btn" @click="showPassword = !showPassword">
+                  <Eye v-if="showPassword" :size="18" />
+                  <EyeOff v-else :size="18" />
+                </button>
               </div>
             </div>
 
@@ -172,7 +176,7 @@ import api from '../api';
 import { 
   Sun, Moon, Utensils, Mail, Lock, 
   RefreshCw, AlertCircle, ArrowRight, ArrowLeft, Check,
-  ShieldAlert, KeyRound
+  ShieldAlert, KeyRound, Eye, EyeOff
 } from 'lucide-vue-next';
 import { baseUrl } from '../api';
 
@@ -187,6 +191,7 @@ const form = reactive({
   remember: false
 });
 
+const showPassword = ref(false);
 const show2FA = ref(false);
 const pendingEmail = ref('');
 const otpCode = ref('');
@@ -456,14 +461,30 @@ const backToLogin = () => {
 .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
 
 .input-wrapper { position: relative; display: flex; align-items: center; }
-.i-icon { position: absolute; left: 16px; color: var(--text-dim); transition: 0.2s; }
+.i-icon { position: absolute; left: 16px; color: var(--text-dim); transition: 0.2s; pointer-events: none; }
+.eye-btn {
+  position: absolute;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+.eye-btn:hover {
+  color: var(--text-main);
+}
 .form-control {
   width: 100%;
   height: 54px;
   background-color: var(--surface-accent);
   border: 1px solid transparent;
   border-radius: 14px;
-  padding: 0 16px 0 48px;
+  padding: 0 44px 0 48px;
   color: var(--text-main);
   font-size: 14px;
   transition: all 0.2s ease;

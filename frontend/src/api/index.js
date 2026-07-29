@@ -41,7 +41,7 @@ api.interceptors.request.use(config => {
     return config;
 });
 
-// Response interceptor to handle 401 errors
+// Response interceptor to handle 401 & 402 errors
 api.interceptors.response.use(
     response => response,
     error => {
@@ -54,6 +54,14 @@ api.interceptors.response.use(
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('user');
                 window.location.href = '/login';
+            }
+        } else if (error.response?.status === 402) {
+            // Subscription / Trial expired
+            console.warn('⚠️ 402 Payment Required (Subscription Expired):', error.config?.url);
+            
+            const currentPath = window.location.pathname;
+            if (!currentPath.includes('/billing') && !currentPath.includes('/login') && !currentPath.includes('/register')) {
+                window.location.href = '/app/billing?expired=true';
             }
         }
         return Promise.reject(error);
