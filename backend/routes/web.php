@@ -22,4 +22,4 @@ Route::get('/{any}', function () {
         'message' => 'API Endpoint not found or Frontend not built. Please run npm run build.',
         'status' => 'not_found'
     ], 404);
-})->where('any', '.*');
+})->where('any', '^(?!api).*$');
