@@ -1,0 +1,24 @@
+{
+  "name": "Kee POS Premium",
+  "short_name": "Kee POS",
+  "description": "Sistem kasir digital berbasis cloud untuk bisnis kuliner",
+  "start_url": "/app/",
+  "display": "standalone",
+  "background_color": "#0a1120",
+  "theme_color": "#f97316",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
