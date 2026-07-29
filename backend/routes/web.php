@@ -12,19 +12,14 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
+Route::get('/{any}', function () {
+    $indexPath = public_path('index.html');
+    if (file_exists($indexPath)) {
+        return file_get_contents($indexPath);
+    }
+    
     return response()->json([
-        'app' => 'Kee POS API',
-        'version' => '1.0',
-        'env' => app()->environment(),
-        'documentation' => 'https://keetech.my.id/docs'
-    ]);
-});
-
-// Fallback for SPA Routing (Handled by Nginx for production, or as last resort here)
-Route::fallback(function () {
-    return response()->json([
-        'message' => 'API Endpoint not found. Please check your URL.',
+        'message' => 'API Endpoint not found or Frontend not built. Please run npm run build.',
         'status' => 'not_found'
     ], 404);
-});
+})->where('any', '.*');

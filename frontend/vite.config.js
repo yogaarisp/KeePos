@@ -14,6 +14,8 @@ export default defineConfig({
         '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': false,
     },
     build: {
+        outDir: '../backend/public',
+        emptyOutDir: false, // Penting agar file laravel seperti index.php dan folder storage tidak terhapus
         rollupOptions: {
             output: {
                 manualChunks: {
