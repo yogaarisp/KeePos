@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Shift;
 use App\Models\ShiftTransaction;
+use App\Exceptions\BusinessException;
 use Illuminate\Support\Facades\DB;
 
 class ShiftService
@@ -15,7 +16,7 @@ class ShiftService
             ->first();
 
         if ($activeShift) {
-            throw new \Exception('Anda sudah memiliki shift aktif');
+            throw new BusinessException('Anda sudah memiliki shift aktif');
         }
 
         return Shift::create([

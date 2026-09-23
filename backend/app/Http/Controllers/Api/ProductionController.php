@@ -190,7 +190,7 @@ class ProductionController extends Controller
                     foreach ($insufficientItems as $ii) {
                         $details[] = "{$ii['name']} (Tersedia: {$ii['available']} {$ii['unit']}, Butuh: {$ii['required']} {$ii['unit']})";
                     }
-                    throw new \Exception($msg . implode(', ', $details));
+                    throw new \App\Exceptions\BusinessException($msg . implode(', ', $details));
                 }
 
                 // Step 2: Deduct ingredients stock & Sum cost
@@ -238,7 +238,7 @@ class ProductionController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $this->safeErrorMessage($e)
             ], 400);
         }
     }
@@ -254,7 +254,7 @@ class ProductionController extends Controller
                 $prodRecipe = $transaction->productionRecipe;
                 
                 if (!$prodRecipe) {
-                    throw new \Exception('Resep produksi tidak ditemukan.');
+                    throw new \App\Exceptions\BusinessException('Resep produksi tidak ditemukan.');
                 }
 
                 $recipe = $prodRecipe->recipe;
@@ -266,7 +266,7 @@ class ProductionController extends Controller
                 // 1. Verify and reduce output stock
                 $outputStock = KitchenStock::findOrFail($prodRecipe->output_kitchen_stock_id);
                 if (floatval($outputStock->stock) < floatval($qtyProduced)) {
-                    throw new \Exception("Tidak bisa membatalkan produksi karena stok produk hasil produksi ({$outputStock->name}) kurang dari jumlah yang diproduksi ({$qtyProduced} {$outputStock->unit}).");
+                    throw new \App\Exceptions\BusinessException("Tidak bisa membatalkan produksi karena stok produk hasil produksi ({$outputStock->name}) kurang dari jumlah yang diproduksi ({$qtyProduced} {$outputStock->unit}).");
                 }
 
                 // Deduct output stock
@@ -300,7 +300,7 @@ class ProductionController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $this->safeErrorMessage($e)
             ], 400);
         }
     }

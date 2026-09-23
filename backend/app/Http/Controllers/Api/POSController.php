@@ -90,7 +90,7 @@ class POSController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => $this->safeErrorMessage($e),
             ], 400);
         }
     }

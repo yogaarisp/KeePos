@@ -73,7 +73,7 @@ class RegisterController extends Controller
             $this->initializeDefaultData($tenant->id);
 
             // 5. Generate and Send OTP
-            $otpCode = sprintf("%06d", mt_rand(1, 999999));
+            $otpCode = sprintf("%06d", random_int(0, 999999));
             OTPVerification::updateOrCreate(
                 ['email' => $user->email],
                 [

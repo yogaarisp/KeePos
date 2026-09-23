@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class SubscriptionController extends Controller
 {
@@ -194,7 +195,8 @@ class SubscriptionController extends Controller
                 ->post($baseUrl, $payload);
 
             if (!$response->successful()) {
-                throw new \Exception('Midtrans Error (' . $response->status() . '): ' . $response->body());
+                Log::error('Midtrans Error', ['status' => $response->status(), 'body' => $response->body(), 'order_id' => $orderId]);
+                throw new \App\Exceptions\BusinessException('Gagal menghubungi gateway pembayaran. Silakan coba lagi.');
             }
 
             $midtransResponse = $response->json();
@@ -218,7 +220,7 @@ class SubscriptionController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $this->safeErrorMessage($e)
             ], 500);
         }
     }
@@ -491,7 +493,7 @@ class SubscriptionController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memproses approval: ' . $e->getMessage()
+                'message' => 'Gagal memproses approval: ' . $this->safeErrorMessage($e)
             ], 500);
         }
     }

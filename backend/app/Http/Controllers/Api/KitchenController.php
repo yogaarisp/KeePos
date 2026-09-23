@@ -220,7 +220,7 @@ class KitchenController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $this->safeErrorMessage($e)
             ], 400);
         }
     }
@@ -250,7 +250,7 @@ class KitchenController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $this->safeErrorMessage($e)
             ], 400);
         }
     }
@@ -280,7 +280,7 @@ class KitchenController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $this->safeErrorMessage($e)
             ], 400);
         }
     }
@@ -312,7 +312,7 @@ class KitchenController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $this->safeErrorMessage($e)
             ], 400);
         }
     }

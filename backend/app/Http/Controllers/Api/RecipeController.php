@@ -114,7 +114,7 @@ class RecipeController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal menyimpan resep: ' . $e->getMessage()
+                'message' => 'Gagal menyimpan resep: ' . $this->safeErrorMessage($e)
             ], 500);
         }
     }
@@ -179,7 +179,7 @@ class RecipeController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memperbarui resep: ' . $e->getMessage()
+                'message' => 'Gagal memperbarui resep: ' . $this->safeErrorMessage($e)
             ], 500);
         }
     }

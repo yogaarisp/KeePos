@@ -7,6 +7,7 @@ use App\Models\StockTransaction;
 use App\Models\KitchenStock;
 use App\Models\KitchenStockTransaction;
 use App\Models\KitchenUnitConversion;
+use App\Exceptions\BusinessException;
 use Illuminate\Support\Facades\DB;
 
 class StockService
@@ -14,7 +15,7 @@ class StockService
     public function addStock($itemId, $quantity, $notes = null, $supplierId = null, $purchasePrice = null)
     {
         return DB::transaction(function () use ($itemId, $quantity, $notes, $supplierId, $purchasePrice) {
-            $item = StokGudang::findOrFail($itemId);
+            $item = StokGudang::whereKey($itemId)->lockForUpdate()->firstOrFail();
             $stockBefore = $item->stock;
 
             // Update current stock and price per unit if purchase price provided
@@ -42,10 +43,10 @@ class StockService
     public function reduceStock($itemId, $quantity, $notes = null)
     {
         return DB::transaction(function () use ($itemId, $quantity, $notes) {
-            $item = StokGudang::findOrFail($itemId);
+            $item = StokGudang::whereKey($itemId)->lockForUpdate()->firstOrFail();
 
             if ($item->stock < $quantity) {
-                throw new \Exception('Stok tidak mencukupi. Stok saat ini: ' . $item->stock);
+                throw new BusinessException('Stok tidak mencukupi. Stok saat ini: ' . $item->stock);
             }
 
             $stockBefore = $item->stock;
@@ -68,14 +69,14 @@ class StockService
     public function transferToKitchen($gudangItemId, $quantity, $notes = null)
     {
         return DB::transaction(function () use ($gudangItemId, $quantity, $notes) {
-            $warehouseItem = StokGudang::findOrFail($gudangItemId);
+            $warehouseItem = StokGudang::whereKey($gudangItemId)->lockForUpdate()->firstOrFail();
 
             if ($warehouseItem->stock < $quantity) {
-                throw new \Exception("Stok gudang tidak cukup! Tersedia: {$warehouseItem->stock} {$warehouseItem->unit}, diminta: {$quantity}");
+                throw new BusinessException("Stok gudang tidak cukup! Tersedia: {$warehouseItem->stock} {$warehouseItem->unit}, diminta: {$quantity}");
             }
 
             // Find or create kitchen item linked to this warehouse item
-            $kitchenStock = KitchenStock::where('warehouse_item_id', $gudangItemId)->first();
+            $kitchenStock = KitchenStock::where('warehouse_item_id', $gudangItemId)->lockForUpdate()->first();
 
             if ($kitchenStock) {
                 $stockBefore = $kitchenStock->stock;
@@ -124,10 +125,10 @@ class StockService
     public function consumeKitchenStock($kitchenItemId, $quantity, $notes = null)
     {
         return DB::transaction(function () use ($kitchenItemId, $quantity, $notes) {
-            $item = KitchenStock::findOrFail($kitchenItemId);
+            $item = KitchenStock::whereKey($kitchenItemId)->lockForUpdate()->firstOrFail();
 
             if ($item->stock < $quantity) {
-                throw new \Exception("Stok tidak cukup! Tersedia: {$item->stock} {$item->unit}");
+                throw new BusinessException("Stok tidak cukup! Tersedia: {$item->stock} {$item->unit}");
             }
 
             $stockBefore = $item->stock;
@@ -150,21 +151,21 @@ class StockService
     public function returnToWarehouse($kitchenItemId, $quantity, $notes = null)
     {
         return DB::transaction(function () use ($kitchenItemId, $quantity, $notes) {
-            $kitchenItem = KitchenStock::findOrFail($kitchenItemId);
+            $kitchenItem = KitchenStock::whereKey($kitchenItemId)->lockForUpdate()->firstOrFail();
 
             if ($kitchenItem->is_manual) {
-                throw new \Exception('Item manual tidak bisa di-return ke gudang!');
+                throw new BusinessException('Item manual tidak bisa di-return ke gudang!');
             }
 
             if (!$kitchenItem->warehouse_item_id) {
-                throw new \Exception('Item ini tidak memiliki sumber gudang');
+                throw new BusinessException('Item ini tidak memiliki sumber gudang');
             }
 
             if ($kitchenItem->stock < $quantity) {
-                throw new \Exception("Stok dapur tidak cukup! Tersedia: {$kitchenItem->stock} {$kitchenItem->unit}");
+                throw new BusinessException("Stok dapur tidak cukup! Tersedia: {$kitchenItem->stock} {$kitchenItem->unit}");
             }
 
-            $warehouseItem = StokGudang::findOrFail($kitchenItem->warehouse_item_id);
+            $warehouseItem = StokGudang::whereKey($kitchenItem->warehouse_item_id)->lockForUpdate()->firstOrFail();
 
             // Return to warehouse
             $stockBefore = $kitchenItem->stock;
@@ -203,7 +204,7 @@ class StockService
     public function topUpKitchenStock($kitchenItemId, $quantity, $costPrice = null, $notes = null)
     {
         return DB::transaction(function () use ($kitchenItemId, $quantity, $costPrice, $notes) {
-            $item = KitchenStock::findOrFail($kitchenItemId);
+            $item = KitchenStock::whereKey($kitchenItemId)->lockForUpdate()->firstOrFail();
             $stockBefore = $item->stock;
 
             $updateData = ['stock' => $stockBefore + $quantity];

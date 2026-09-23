@@ -13,19 +13,12 @@ use App\Models\PlatformSetting;
 use App\Models\SaleMissingRecipe;
 use App\Models\Product;
 use App\Models\KitchenUnitConversion;
-use App\Services\GoogleSheetService;
+use App\Exceptions\BusinessException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class POSService
 {
-    protected $gsService;
-
-    public function __construct(GoogleSheetService $gsService)
-    {
-        $this->gsService = $gsService;
-    }
-
     public function processOrder(array $data)
     {
         return DB::transaction(function () use ($data) {
@@ -35,7 +28,7 @@ class POSService
             $productIds = array_column($data['items'], 'product_id');
             $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
             if ($products->count() !== count(array_unique($productIds))) {
-                throw new \InvalidArgumentException('Terdapat produk yang tidak ditemukan atau tidak aktif.');
+                throw new BusinessException('Terdapat produk yang tidak ditemukan atau tidak aktif.');
             }
 
             // Muat opsi kustomisasi dari DB jika ada
@@ -55,7 +48,7 @@ class POSService
             foreach ($data['items'] as &$item) {
                 $product = $products->get($item['product_id']);
                 if (!$product) {
-                    throw new \InvalidArgumentException("Produk ID {$item['product_id']} tidak ditemukan.");
+                    throw new BusinessException("Produk ID {$item['product_id']} tidak ditemukan.");
                 }
 
                 $unitPrice = (float) $product->price > 0 ? (float) $product->price : 0;
@@ -66,7 +59,7 @@ class POSService
                     foreach ($item['customizations'] as &$custom) {
                         $option = $options->get($custom['option_id']);
                         if (!$option) {
-                            throw new \InvalidArgumentException("Opsi kustomisasi ID {$custom['option_id']} tidak ditemukan.");
+                            throw new BusinessException("Opsi kustomisasi ID {$custom['option_id']} tidak ditemukan.");
                         }
                         $optionPrice = (float) $option->price > 0 ? (float) $option->price : 0;
                         $custom['price'] = $optionPrice;
@@ -140,9 +133,8 @@ class POSService
                 $shift->increment('total_transactions');
             }
 
-            // Sync to Google Sheets if enabled
-            $this->gsService->syncTransaction($sale);
-
+            // NOTE: Google Sheets sync dilakukan di POSController setelah transaction selesai,
+            // sehingga kegagalan sync tidak menggagalkan/rollback transaksi POS.
             return $sale->load('items.product', 'items.customizations.option');
         });
     }
@@ -186,7 +178,9 @@ class POSService
                     continue;
                 }
 
-                $kitchenStock = KitchenStock::find($recipeItem->ingredient_id);
+                $kitchenStock = KitchenStock::whereKey($recipeItem->ingredient_id)
+                    ->lockForUpdate()
+                    ->first();
                 if (!$kitchenStock) {
                     Log::warning("POS Auto-Deduct: Bahan dapur ID:{$recipeItem->ingredient_id} tidak ditemukan untuk resep '{$recipe->name}'.");
                     continue;

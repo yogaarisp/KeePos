@@ -490,7 +490,7 @@ class SettingController extends Controller
             @unlink($fullPath);
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal merestore data: ' . $e->getMessage()
+                'message' => 'Gagal merestore data: ' . $this->safeErrorMessage($e)
             ], 500);
         }
     }
@@ -535,7 +535,7 @@ class SettingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal sinkronisasi: ' . $e->getMessage()
+                'message' => 'Gagal sinkronisasi: ' . $this->safeErrorMessage($e)
             ], 500);
         }
     }
@@ -567,7 +567,7 @@ class SettingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal sinkronisasi: ' . $e->getMessage()
+                'message' => 'Gagal sinkronisasi: ' . $this->safeErrorMessage($e)
             ], 500);
         }
     }

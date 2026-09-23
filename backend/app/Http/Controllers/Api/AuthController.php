@@ -59,7 +59,7 @@ class AuthController extends Controller
 
         // Handle 2FA check
         if ($user->two_factor_enabled) {
-            $otpCode = sprintf("%06d", mt_rand(1, 999999));
+            $otpCode = sprintf("%06d", random_int(0, 999999));
             $user->two_factor_code = $otpCode;
             $user->two_factor_expires_at = now()->addMinutes(10);
             $user->save();

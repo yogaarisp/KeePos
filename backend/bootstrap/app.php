@@ -14,7 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: env('TRUSTED_PROXIES', '*'));
+        $trusted = env('TRUSTED_PROXIES');
+        if ($trusted) {
+            $middleware->trustProxies(at: array_map('trim', explode(',', $trusted)));
+        }
         $middleware->statefulApi();
         $middleware->validateCsrfTokens(except: [
             'api/*',
