@@ -168,11 +168,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/settings/payment-methods/{id}', [SettingController::class, 'updatePaymentMethod']);
         Route::delete('/settings/payment-methods/{id}', [SettingController::class, 'destroyPaymentMethod']);
 
-        // User Routes
-        Route::get('/users', [UserController::class, 'index']);
-        Route::post('/users', [UserController::class, 'store']);
-        Route::put('/users/{id}', [UserController::class, 'update']);
-        Route::delete('/users/{id}', [UserController::class, 'destroy']);
+        // User Routes - hanya admin & superadmin yang boleh kelola user
+        Route::middleware('role:admin,superadmin')->group(function () {
+            Route::get('/users', [UserController::class, 'index']);
+            Route::post('/users', [UserController::class, 'store']);
+            Route::put('/users/{id}', [UserController::class, 'update']);
+            Route::delete('/users/{id}', [UserController::class, 'destroy']);
+        });
 
         // Supplier Routes - Required Pro
         Route::middleware('plan:pro')->group(function () {

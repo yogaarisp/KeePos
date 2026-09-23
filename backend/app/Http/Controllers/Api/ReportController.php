@@ -38,11 +38,17 @@ class ReportController extends Controller
         });
 
         // Top Products
+        $tenantId = config('app.current_tenant_id');
         $topProducts = DB::table('order_items')
             ->join('products', 'order_items.product_id', '=', 'products.id')
             ->join('sales', 'order_items.sale_id', '=', 'sales.id')
             ->where('sales.status', 'completed')
             ->whereBetween('sales.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where(function ($q) use ($tenantId) {
+                if ($tenantId) {
+                    $q->where('sales.tenant_id', $tenantId);
+                }
+            })
             ->select('products.name', DB::raw('SUM(order_items.quantity) as total_qty'), DB::raw('SUM(order_items.subtotal) as total_revenue'))
             ->groupBy('products.id', 'products.name')
             ->orderBy('total_qty', 'desc')
@@ -74,11 +80,17 @@ class ReportController extends Controller
         $endDate   = $request->get('end_date', now()->format('Y-m-d'));
 
         // Get sold items with product cost_price
+        $tenantId = config('app.current_tenant_id');
         $items = DB::table('order_items')
             ->join('products', 'order_items.product_id', '=', 'products.id')
             ->join('sales', 'order_items.sale_id', '=', 'sales.id')
             ->where('sales.status', 'completed')
             ->whereBetween('sales.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where(function ($q) use ($tenantId) {
+                if ($tenantId) {
+                    $q->where('sales.tenant_id', $tenantId);
+                }
+            })
             ->select(
                 'products.id',
                 'products.name',

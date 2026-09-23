@@ -20,6 +20,16 @@ use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
+    /**
+     * Kunci setting yang bersifat rahasia (tidak boleh dikembalikan ke client).
+     */
+    private const SENSITIVE_SETTING_KEYS = ['google_service_account_json', 'smtp_password'];
+
+    /**
+     * Nilai pengganti untuk secret yang tidak boleh bocor ke client.
+     */
+    private const SECRET_MASK = '********';
+
     public function index()
     {
         $user = auth()->user();
@@ -41,7 +51,7 @@ class SettingController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'settings' => $settings,
+                'settings' => $this->maskSensitiveSettings($settings),
                 'payment_methods' => $paymentMethods,
                 'tenant' => $user->tenant,
                 'profile' => $profile ? [
@@ -60,6 +70,27 @@ class SettingController extends Controller
                 ] : null
             ]
         ]);
+    }
+
+    /**
+     * Sembunyikan nilai secret dari respons API (jangan bocor ke browser).
+     */
+    protected function maskSensitiveSettings($settings)
+    {
+        return $settings->map(function ($setting) {
+            if (in_array($setting->key, self::SENSITIVE_SETTING_KEYS) && $setting->value !== null && $setting->value !== '') {
+                $setting->value = self::SECRET_MASK;
+            }
+            return $setting;
+        });
+    }
+
+    /**
+     * Apakah kunci setting termasuk grup sensitif (Google Sheets / Email).
+     */
+    protected function isSensitiveSettingKey(string $key): bool
+    {
+        return strpos($key, 'google_') === 0 || strpos($key, 'smtp_') === 0;
     }
 
     public function publicSettings()
@@ -198,7 +229,13 @@ class SettingController extends Controller
         }
 
         // Update tenant settings (konfigurasi teknis)
+        $isPrivileged = in_array($user->role, ['admin', 'superadmin']);
         foreach ($settingsData as $key => $value) {
+            // Hanya admin/superadmin yang boleh mengubah pengaturan sensitif (Google Sheets/SMTP)
+            if ($this->isSensitiveSettingKey($key) && !$isPrivileged) {
+                continue;
+            }
+
             $existing = TenantSetting::where('key', $key)->first();
             $group = $existing ? $existing->group : 'general';
             
@@ -229,6 +266,11 @@ class SettingController extends Controller
                 if (!$isPro) {
                     continue;
                 }
+            }
+
+            // Jangan timpa secret dengan nilai mask dari client ('********')
+            if (in_array($key, self::SENSITIVE_SETTING_KEYS) && $value === self::SECRET_MASK) {
+                continue;
             }
 
             TenantSetting::setValue($key, $value, $group);

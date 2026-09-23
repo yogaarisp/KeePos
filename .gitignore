@@ -15,8 +15,19 @@ backend/config/resto-pos-sync-*.json
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.env
 frontend/.env.local
+frontend/.env.local.backup
+frontend/.env.development
+frontend/.env.network
 frontend/.env.production
+frontend/.env.*.local
+
+# Debug & diagnostic artifacts
+error.json
+error_login.json
+backend/check_tables.php
+backend/get_tenant_tables.php
 
 # IDE
 .vscode/

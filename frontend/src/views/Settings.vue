@@ -689,6 +689,7 @@ import { useSettingStore } from '../stores/setting';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 import { showConfirm, showSuccess, showError } from '../utils/swal';
+import Swal from 'sweetalert2';
 import { 
   Printer, Bluetooth, Check, Wifi, ArrowLeft, X, FileSpreadsheet,
   Settings2, Store, CreditCard, Mail, Database, Camera, Image, Info, Plus, Edit2, Trash2, Banknote, Smartphone, Building2, Save, RefreshCw, Shield, Download, Upload, Eye, ShieldCheck, DollarSign, CheckCircle, Zap
@@ -938,7 +939,28 @@ const handleJsonPartUpload = (e) => {
 };
 
 const showGuide = () => {
-  window.open('https://github.com/your-repo/blob/main/Google_Sheets_Implementation.md', '_blank');
+  Swal.fire({
+    title: 'Panduan Google Sheets',
+    icon: 'info',
+    width: '520px',
+    padding: '24px',
+    html: `
+      <div style="text-align:left;font-size:14px;line-height:1.7;color:#334155;">
+        <ol style="margin:0;padding-left:18px;">
+          <li>Buka <strong>Google Sheets</strong> dan buat spreadsheet baru.</li>
+          <li>Klik menu <strong>Bagikan (Share)</strong>, masukkan <em>email Service Account</em>, lalu beri akses <strong>Editor</strong>.</li>
+          <li>Tempel isi file <strong>Service Account JSON</strong> (dari Google Cloud Console) ke form di atas.</li>
+          <li>Isi <strong>Spreadsheet ID</strong> (kode di URL spreadsheet setelah <code>/d/</code>).</li>
+          <li>Aktifkan <strong>Auto Sync</strong>, lalu klik <strong>Sync Semua Data</strong> untuk upload pertama.</li>
+        </ol>
+        <p style="margin-top:12px;margin-bottom:0;color:#64748b;">
+          Panduan lengkap tersedia di <code>plan/Google_Sheets_Implementation.md</code> pada repository proyek.
+        </p>
+      </div>
+    `,
+    confirmButtonText: 'Mengerti',
+    confirmButtonColor: '#ff6b35',
+  });
 };
 
 const handleImport = async (e) => {

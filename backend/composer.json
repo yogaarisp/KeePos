@@ -1,13 +1,13 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "keetech/kpos-backend",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "Kee POS — API backend multi-tenant untuk aplikasi kasir (POS) berbasis Laravel 12.",
+    "keywords": ["pos", "kasir", "multi-tenant", "laravel", "rest-api"],
+    "license": "proprietary",
     "require": {
         "php": "^8.2",
-        "google/apiclient": "2.15",
+        "google/apiclient": "^2.20",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1"

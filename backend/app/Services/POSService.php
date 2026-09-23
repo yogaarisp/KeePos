@@ -31,17 +31,52 @@ class POSService
         return DB::transaction(function () use ($data) {
             $subtotal = 0;
 
-            // Calculate subtotal
-            foreach ($data['items'] as &$item) {
-                $itemSubtotal = $item['price'] * $item['quantity'];
+            // Muat produk dari DB (harga dihitung server-side, JANGAN pakai harga dari client)
+            $productIds = array_column($data['items'], 'product_id');
+            $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+            if ($products->count() !== count(array_unique($productIds))) {
+                throw new \InvalidArgumentException('Terdapat produk yang tidak ditemukan atau tidak aktif.');
+            }
 
-                // Add customization prices
+            // Muat opsi kustomisasi dari DB jika ada
+            $optionIds = [];
+            foreach ($data['items'] as $item) {
                 if (isset($item['customizations'])) {
                     foreach ($item['customizations'] as $custom) {
-                        $itemSubtotal += $custom['price'] * $item['quantity'];
+                        $optionIds[] = $custom['option_id'];
                     }
                 }
+            }
+            $options = !empty($optionIds)
+                ? \App\Models\CustomOption::whereIn('id', array_unique($optionIds))->get()->keyBy('id')
+                : collect();
 
+            // Calculate subtotal berdasarkan harga server-side
+            foreach ($data['items'] as &$item) {
+                $product = $products->get($item['product_id']);
+                if (!$product) {
+                    throw new \InvalidArgumentException("Produk ID {$item['product_id']} tidak ditemukan.");
+                }
+
+                $unitPrice = (float) $product->price > 0 ? (float) $product->price : 0;
+                $itemSubtotal = $unitPrice * $item['quantity'];
+
+                // Tambahkan harga kustomisasi (harga diambil dari DB, bukan client)
+                if (isset($item['customizations'])) {
+                    foreach ($item['customizations'] as &$custom) {
+                        $option = $options->get($custom['option_id']);
+                        if (!$option) {
+                            throw new \InvalidArgumentException("Opsi kustomisasi ID {$custom['option_id']} tidak ditemukan.");
+                        }
+                        $optionPrice = (float) $option->price > 0 ? (float) $option->price : 0;
+                        $custom['price'] = $optionPrice;
+                        $custom['option_name'] = $option->name;
+                        $itemSubtotal += $optionPrice * $item['quantity'];
+                    }
+                    unset($custom);
+                }
+
+                $item['price'] = $unitPrice;
                 $item['subtotal'] = $itemSubtotal;
                 $subtotal += $itemSubtotal;
             }

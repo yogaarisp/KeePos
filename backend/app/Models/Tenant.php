@@ -51,17 +51,15 @@ class Tenant extends Model
      */
     public function getOrCreateProfile()
     {
-        if (!$this->profile) {
-            return TenantProfile::create([
-                'tenant_id' => $this->id,
+        return TenantProfile::firstOrCreate(
+            ['tenant_id' => $this->id],
+            [
                 'shop_name' => $this->name,
                 'shop_email' => $this->email,
                 'shop_phone' => $this->phone,
                 'shop_address' => $this->address,
                 'shop_tagline' => 'Smart POS System',
-            ]);
-        }
-        
-        return $this->profile;
+            ]
+        );
     }
 }

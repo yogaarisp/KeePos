@@ -54,12 +54,15 @@ class UserController extends Controller
             ], 403);
         }
 
+        $currentUser = $request->user();
+        $roleRule = ($currentUser->role === 'superadmin') ? 'in:admin,kasir,superadmin' : 'in:admin,kasir';
+
         $validated = $request->validate([
             'username' => 'required|string|max:50|unique:users',
             'email' => 'required|email|max:100|unique:users',
             'password' => 'required|string|min:6',
             'full_name' => 'required|string|max:100',
-            'role' => 'required|in:admin,kasir,superadmin',
+            'role' => 'required|' . $roleRule,
             'is_active' => 'boolean',
         ]);
 
@@ -85,11 +88,13 @@ class UserController extends Controller
 
         $user = $query->findOrFail($id);
 
+        $roleRule = ($currentUser->role === 'superadmin') ? 'in:admin,kasir,superadmin' : 'in:admin,kasir';
+
         $validated = $request->validate([
             'username' => ['required', 'string', 'max:50', Rule::unique('users')->ignore($id)],
             'email' => ['required', 'email', 'max:100', Rule::unique('users')->ignore($id)],
             'full_name' => 'required|string|max:100',
-            'role' => 'required|in:admin,kasir,superadmin',
+            'role' => 'required|' . $roleRule,
             'is_active' => 'boolean',
             'password' => 'nullable|string|min:6',
         ]);
