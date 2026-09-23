@@ -151,7 +151,7 @@
 
 <script setup>
 import { onMounted, ref, reactive } from 'vue';
-import { useAuthStore } from '../stores/auth';
+import api from '../api';
 import { 
   Package, FileSpreadsheet, FileText, RotateCcw, Clock,
   TrendingUp, Activity, CloudUpload, RefreshCw
@@ -160,7 +160,6 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const authStore = useAuthStore();
 const syncLoading = ref(false);
 
 const inventoryData = ref(null);
@@ -186,22 +185,10 @@ const fetchInventoryReport = async () => {
     if (inventoryFilters.type) params.append('type', inventoryFilters.type);
 
     console.log('Fetching inventory report with params:', params.toString());
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/inventory?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Accept': 'application/json'
-      }
-    });
+    const response = await api.get(`/reports/inventory?${params}`);
 
     console.log('Response status:', response.status);
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Inventory data received:', data);
-      inventoryData.value = data;
-    } else {
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-    }
+    inventoryData.value = response.data;
   } catch (error) {
     console.error('Failed to fetch inventory report:', error);
   } finally {
@@ -251,27 +238,14 @@ const syncToGSheet = async () => {
   
   syncLoading.value = true;
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/settings/sync-inventory-gsheet`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        transactions: inventoryData.value.transactions
-      })
+    const response = await api.post('/settings/sync-inventory-gsheet', {
+      transactions: inventoryData.value.transactions
     });
 
-    const result = await response.json();
-    if (response.ok) {
-      alert(result.message || 'Laporan Inventori berhasil disinkronkan ke Google Sheets!');
-    } else {
-      alert(result.message || 'Gagal sinkronisasi Google Sheets.');
-    }
+    alert(response.data.message || 'Laporan Inventori berhasil disinkronkan ke Google Sheets!');
   } catch (error) {
     console.error('Failed to sync to GSheet:', error);
-    alert('Terjadi kesalahan saat sinkronisasi.');
+    alert(error.response?.data?.message || 'Terjadi kesalahan saat sinkronisasi.');
   } finally {
     syncLoading.value = false;
   }

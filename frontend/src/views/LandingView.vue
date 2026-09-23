@@ -406,7 +406,7 @@ const shopInfo = ref({
   plan_pro_price: 249000
 });
 
-const whatsappLink = ref('https://wa.me/628123456789');
+const whatsappLink = ref('');
 
 watch(() => shopInfo.value.app_whatsapp, (val) => {
   if (val) {

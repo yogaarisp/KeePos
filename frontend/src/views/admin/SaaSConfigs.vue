@@ -1229,28 +1229,22 @@ const backupDatabase = async () => {
     const token = localStorage.getItem('auth_token');
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     
-    const response = await fetch(apiUrl + '/admin/saas/db/backup', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/sql',
-        ...(user?.tenant ? { 'X-Tenant-Slug': user.tenant.slug } : {})
-      }
+    const response = await api.get('/admin/saas/db/backup', {
+      responseType: 'blob'
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Backup gagal');
+    if (response.status !== 200) {
+      throw new Error(typeof response.data === 'string' ? response.data : 'Backup gagal');
     }
 
-    const blob = await response.blob();
+    const blob = response.data;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     
     // Better filename extraction
     let filename = `full-backup-${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.sql`;
-    const disposition = response.headers.get('content-disposition');
+    const disposition = response.headers['content-disposition'];
     if (disposition && disposition.indexOf('attachment') !== -1) {
       const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
       const matches = filenameRegex.exec(disposition);
